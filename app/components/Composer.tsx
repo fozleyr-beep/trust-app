@@ -19,15 +19,26 @@ type RecipientKey = {
 // MessageStream listens for these and renders the message immediately
 // (with a "sending" affordance until the SSE delivers the real row).
 
+// Server-side Zod cap is 8000 chars per message. Match it client-side so
+// the textarea won't accept input the server will reject.
+const MAX_LEN = 8000;
+
 export function Composer({ threadId }: { threadId: string }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const remaining = MAX_LEN - text.length;
+  const tooLong = remaining < 0;
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     const draft = text.trim();
     if (!draft || busy) return;
+    if (draft.length > MAX_LEN) {
+      setError(`message too long (${draft.length} / ${MAX_LEN})`);
+      return;
+    }
     setBusy(true);
     setError(null);
 
@@ -103,16 +114,28 @@ export function Composer({ threadId }: { threadId: string }) {
         onKeyDown={handleKey}
         placeholder="Write to this thread… (Enter to send, Shift+Enter for newline)"
         rows={3}
+        maxLength={MAX_LEN}
         className="block w-full resize-none border border-[var(--color-rule)] bg-transparent px-4 py-3 font-serif text-[1.05rem] outline-none focus:border-[var(--color-ink)]"
       />
       <div className="flex items-center gap-4">
         <button
           type="submit"
-          disabled={busy || !text.trim()}
+          disabled={busy || !text.trim() || tooLong}
           className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-[var(--color-paper)] bg-[var(--color-ink)] px-5 py-3 disabled:opacity-50 hover:enabled:bg-[var(--color-accent)]"
         >
           {busy ? "Encrypting…" : "Send"}
         </button>
+        {/* Char counter only shows once you're within 200 of the cap to keep the chrome quiet. */}
+        {remaining < 200 && (
+          <span
+            className={
+              "font-mono text-xs " +
+              (tooLong ? "text-red-700" : "text-[var(--color-ink-muted)]")
+            }
+          >
+            {remaining} / {MAX_LEN}
+          </span>
+        )}
         {error && <span className="text-xs text-red-700">{error}</span>}
       </div>
     </form>

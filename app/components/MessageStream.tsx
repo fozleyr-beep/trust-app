@@ -49,7 +49,12 @@ export function MessageStream({
     "connecting",
   );
 
+  // Cap dedup memory so a long-lived thread session doesn't grow Set
+  // unboundedly. We keep the most recent N message ids — older messages
+  // are unlikely to arrive twice (the server's resume cursor only goes
+  // forward in time), so eviction is safe.
   const seenIdsRef = useRef<Set<string>>(new Set());
+  const SEEN_IDS_CAP = 5000;
   const senderKeyCacheRef = useRef<Map<string, Uint8Array>>(new Map());
   const secretKeysRef = useRef<Uint8Array[]>([]);
 
@@ -93,6 +98,15 @@ export function MessageStream({
     async (m: ServerMsg) => {
       if (seenIdsRef.current.has(m.id)) return;
       seenIdsRef.current.add(m.id);
+      if (seenIdsRef.current.size > SEEN_IDS_CAP) {
+        // Set preserves insertion order — drop the oldest.
+        const drop = seenIdsRef.current.size - SEEN_IDS_CAP;
+        const it = seenIdsRef.current.values();
+        for (let i = 0; i < drop; i++) {
+          const v = it.next().value;
+          if (v !== undefined) seenIdsRef.current.delete(v);
+        }
+      }
 
       if (!senderKeyCacheRef.current.has(m.senderId)) {
         await fetchSenderKeys([m.senderId]);

@@ -1,6 +1,7 @@
 import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireDbUser } from "@/lib/auth/current-user";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,24 @@ export async function GET(
 ) {
   const { id: threadId } = await ctx.params;
   const me = await requireDbUser();
+
+  // Rate-limit connection opens per user. Each open holds a long-lived
+  // server-side poll loop hitting the DB every 1.5s; 50 tabs = 33 DB polls
+  // per second. 10 opens / minute is plenty for any real workflow and a
+  // hard cap on accidental fan-out.
+  const gate = rateLimit(`stream-open:${me.id}`, {
+    capacity: 10,
+    refillPerSecond: 0.166,
+  });
+  if (!gate.ok) {
+    return new Response("rate limit", {
+      status: 429,
+      headers: {
+        "retry-after": String(Math.ceil(gate.retryAfterMs / 1000)),
+      },
+    });
+  }
+
   const conn = db();
 
   const membership = await conn

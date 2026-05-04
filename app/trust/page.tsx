@@ -4,7 +4,18 @@ export const metadata: Metadata = {
   title: "Trust — what we hold, what we don't",
   description:
     "A plain-English contract for what is encrypted, what we can see, and what the AI agent sees.",
+  robots: { index: true, follow: true }, // override the site default
 };
+
+// Pin the version of the trust contract the user is reading to a specific
+// commit. Vercel sets VERCEL_GIT_COMMIT_SHA on every deploy; for local dev
+// the badge falls back to "dev". Auditors can compare what they read here
+// against the source at https://github.com/<repo>/commit/<sha>.
+const COMMIT_SHA = (
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  process.env.GIT_COMMIT_SHA ??
+  "dev"
+).slice(0, 7);
 
 // Server component. No client JS. Public route per middleware.ts.
 //
@@ -148,8 +159,8 @@ export default function TrustPage() {
           this page says, this page wins until we update it.
         </p>
         <p className="mt-3 font-mono text-[0.7rem] uppercase tracking-[0.18em]">
-          Last reviewed —{" "}
-          <time dateTime="2026-05-04">4 May 2026</time>
+          Pinned to commit{" "}
+          <code className="not-italic">{COMMIT_SHA}</code>
         </p>
       </footer>
     </main>
