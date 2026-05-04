@@ -129,7 +129,9 @@ flows:
 
   - name: send_encrypted_message
     steps:
-      - user types in <Composer> on /app/threads/[id]
+      - user types in <Composer> on /app/threads/[id], hits Enter
+      - <Composer> dispatches `trust-app:optimistic-send` so <MessageStream>
+        renders the message immediately in state="sending" (~0ms perceived)
       - client GETs /api/threads/[id]/recipient-keys (active keys of all members)
       - for each recipient device pubkey, client encrypts the plaintext with
         tweetnacl.box (sender's secret + recipient's pub + random nonce)
@@ -188,7 +190,8 @@ routes:
     - POST /api/device-keys
     - POST /api/sender-keys
     - GET /api/threads/[id]/recipient-keys
-    - GET /api/threads/[id]/messages
+    - GET /api/threads/[id]/messages   # one-shot (history, export)
+    - GET /api/threads/[id]/stream     # SSE: real-time per-device deltas
     - POST /api/threads/[id]/messages
     - GET /api/me/threads
     - POST /api/me/delete
@@ -225,6 +228,8 @@ api:
           - { recipientDeviceKeyId: uuid, ciphertext: base64, nonce: base64 }
       authorization:
         - every recipientDeviceKeyId must belong to a current thread member
+        - no duplicate recipientDeviceKeyId entries
+        - validation extracted to lib/messaging/authz.ts (unit-tested)
       side_effects:
         - one messages row per fanout entry
       returns: { ok: true, written: number }
@@ -232,7 +237,23 @@ api:
       auth: clerk session
       query: ?since=<iso>
       limit: 200 rows
+      use: history-load on thread mount, full export
       returns: { messages: [{ id, senderId, ciphertext, nonce, sentAt }] }
+
+  /api/threads/[id]/stream:
+    method: GET
+    auth: clerk session + thread membership
+    response_type: text/event-stream (SSE)
+    server_poll: 1500ms
+    heartbeat: every 20s as ": hb\n\n" comment
+    resume:
+      - server prefers Last-Event-ID header (set by EventSource on reconnect)
+      - falls back to ?since=<iso> query param
+      - finally falls back to a 60-second look-back
+    events:
+      - event: hello   data: { since: iso }
+      - event: message id: <sentAt iso>  data: { id, senderId, ciphertext, nonce, sentAt }
+      - event: error   data: { message: string }
 
   /api/agent:
     method: POST
@@ -301,6 +322,8 @@ logging:
     - auth.backfilled         { clerkId, userId }
     - webhook.clerk.received  { svixId, type, clerkId }
     - webhook.clerk.invalid_signature { svixId }
+    - device.registered       { userId, deviceId, deviceKeyId, rotated, revokedKeyIds }
+    - thread.created          { threadId, creatorId, memberCount }
     - agent.completed         { userId, model, turns, inputTokens, outputTokens, latencyMs }
     - agent.rate_limited      { userId, retryAfterMs }
     - agent.failed            { userId, model, latencyMs, error }
@@ -322,3 +345,18 @@ tests:
     asserts:
       - app/api/agent/ does not import any of the messaging schema or
         db/threads helpers
+  fanout_authz:
+    file: lib/messaging/authz.test.ts
+    asserts:
+      - happy path (every recipient is a thread member)
+      - empty fanout → 400
+      - unknown recipientDeviceKeyId → 400
+      - device belongs to a non-member (exfiltration attempt) → 403
+      - duplicate recipientDeviceKeyId → 400
+      - precedence: unknown-id and duplicate checks run before membership
+
+ci_gates:
+  - typecheck (tsc --noEmit)
+  - npm run db:check (drizzle schema-drift)
+  - npm test (vitest, 17 tests)
+  - npm run check:bundle (next build + per-route First Load JS budget)

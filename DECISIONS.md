@@ -102,6 +102,49 @@ which fails the build if any file under `app/api/agent/` references the
 - In v1 scope. Aligns with the restraint register: small surface area, no
   third-party dependency, and gives users a non-trust-us channel to verify peers.
 
+### Decrypt-fail visibility — surface, don't drop
+
+- If `<MessageStream>` cannot decrypt an incoming row with any of this
+  device's known secret keys, it renders a dashed-border italic
+  `[encrypted — this device cannot decrypt]` placeholder rather than
+  silently dropping the row.
+- Rationale: silence reads as "no message exists"; the placeholder reads
+  as "something exists you can't read here." The latter is honest and
+  prompts the user to investigate (rotation, wrong device, etc.).
+
+---
+
+## Messaging surface — locked
+
+### Real-time delivery via SSE
+
+- New messages flow over `GET /api/threads/[id]/stream` as
+  Server-Sent Events. Server-side polls the `messages` table every 1.5s
+  and pushes deltas; the client EventSource handles reconnection via
+  `Last-Event-ID`.
+- The legacy `GET /api/threads/[id]/messages?since=` endpoint is
+  retained for one-shot history loads (thread mount, full export) but is
+  **not** used in any tight client polling loop.
+- `<MessageStream>` tears down its EventSource when the tab is hidden
+  (`document.visibilityState === "hidden"`) and reopens on visible. Saves
+  one server-side poll loop per backgrounded tab.
+
+### Optimistic composer UX
+
+- `<Composer>` dispatches `trust-app:optimistic-send` immediately on
+  submit, before any encryption or network call. `<MessageStream>` renders
+  the optimistic message in `state="sending"` so users see their own
+  message at ~0ms perceived latency. SSE delivery (~1.5s) replaces the
+  optimistic entry in place by matching `senderId + plaintext`.
+- On send failure, `state="failed"` styling and a draft restore.
+
+### Group threads — up to 10 members per thread
+
+- `createThread` accepts comma- or whitespace-separated emails, capped at
+  9 recipients (10 members total).
+- Schema always supported N members; the cap is enforced at the action
+  layer to keep per-send fanout bounded.
+
 ---
 
 ## Server-side data — locked
@@ -123,11 +166,18 @@ which fails the build if any file under `app/api/agent/` references the
 
 ### What the server enforces
 
-- **Membership check on send** (`app/api/threads/[id]/messages/route.ts`):
-  every recipient device key in the fanout must belong to a current member
-  of the thread. Closes a pollution / exfiltration channel.
-- **Rate limit** on `/api/agent` (Anthropic costs money).
+- **Membership check on send** — every recipient device key in the fanout
+  must belong to a current member of the thread. No duplicates either.
+  Logic in `lib/messaging/authz.ts`, called from
+  `app/api/threads/[id]/messages/route.ts`, locked by 6 unit tests in
+  `lib/messaging/authz.test.ts`.
+- **Rate limit** on `/api/agent` (Anthropic costs money): 6 requests
+  per minute per user (in-memory token bucket).
 - **Pagination cap** of 200 rows on `GET /api/threads/[id]/messages`.
+- **Per-route bundle budget** of 200 KB First Load JS, 130 KB shared.
+  CI-enforced (`npm run check:bundle`).
+- **Drizzle schema drift** check in CI (`npm run db:check`) — fails the
+  build if the schema diverges from committed migrations.
 
 ---
 
