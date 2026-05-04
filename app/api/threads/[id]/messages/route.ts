@@ -39,6 +39,44 @@ export async function POST(
   const parsed = await parseBody(req, SendMessage);
   if (parsed.error) return parsed.error;
 
+  // Authorization: every recipient device key referenced in the fanout must
+  // belong to a current member of this thread. Without this, a malicious
+  // client could write ciphertext rows pointing at arbitrary device keys —
+  // pollution at minimum, exfiltration channel at worst.
+  const targetKeyIds = parsed.data.fanout.map((f) => f.recipientDeviceKeyId);
+  const targetDevices = await conn
+    .select({
+      id: schema.deviceKeys.id,
+      userId: schema.deviceKeys.userId,
+    })
+    .from(schema.deviceKeys)
+    .where(inArray(schema.deviceKeys.id, targetKeyIds));
+
+  if (targetDevices.length !== targetKeyIds.length) {
+    return NextResponse.json(
+      { error: "one or more recipientDeviceKeyId are unknown" },
+      { status: 400 },
+    );
+  }
+
+  const memberRows = await conn
+    .select({ userId: schema.threadMembers.userId })
+    .from(schema.threadMembers)
+    .where(eq(schema.threadMembers.threadId, threadId));
+  const memberIds = new Set(memberRows.map((m) => m.userId));
+
+  for (const d of targetDevices) {
+    if (!memberIds.has(d.userId)) {
+      return NextResponse.json(
+        {
+          error:
+            "recipientDeviceKeyId belongs to a user who is not a member of this thread",
+        },
+        { status: 403 },
+      );
+    }
+  }
+
   const rows = parsed.data.fanout.map((f) => {
     const cipher = fromB64(f.ciphertext);
     return {

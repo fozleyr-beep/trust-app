@@ -1,33 +1,20 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { desc, eq, inArray } from "drizzle-orm";
-import { db, schema } from "@/lib/db";
 import { requireDbUser } from "@/lib/auth/current-user";
+import { listThreadsWithPeers } from "@/lib/db/threads";
 
 export const dynamic = "force-dynamic";
 
-// Server-rendered. Lists thread metadata only — no message bodies are
-// decryptable here, since the server has no decryption keys.
+function formatPeers(peers: string[]): string {
+  if (peers.length === 0) return "(no other members)";
+  if (peers.length === 1) return peers[0];
+  if (peers.length === 2) return `${peers[0]} and ${peers[1]}`;
+  return `${peers[0]} and ${peers.length - 1} others`;
+}
 
 export default async function ThreadsPage() {
   const me = await requireDbUser();
-  const conn = db();
-
-  const memberships = await conn
-    .select({ threadId: schema.threadMembers.threadId })
-    .from(schema.threadMembers)
-    .where(eq(schema.threadMembers.userId, me.id));
-
-  const threadIds = memberships.map((m) => m.threadId);
-
-  const threads =
-    threadIds.length === 0
-      ? []
-      : await conn
-          .select()
-          .from(schema.threads)
-          .where(inArray(schema.threads.id, threadIds))
-          .orderBy(desc(schema.threads.createdAt));
+  const threads = await listThreadsWithPeers(me.id);
 
   return (
     <main className="mx-auto max-w-[68ch] px-6 py-20">
@@ -42,21 +29,31 @@ export default async function ThreadsPage() {
       </div>
 
       {threads.length === 0 ? (
-        <p className="text-[var(--color-ink-soft)]">
-          No threads yet. Start one to see it here.
-        </p>
+        <div className="rounded border border-[var(--color-rule)] px-6 py-10 text-center">
+          <p className="text-[var(--color-ink-soft)]">
+            No threads yet.
+          </p>
+          <p className="mt-4">
+            <Link
+              className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-[var(--color-paper)] bg-[var(--color-ink)] px-5 py-3 hover:bg-[var(--color-accent)]"
+              href={"/app/threads/new" as Route}
+            >
+              Start the first one
+            </Link>
+          </p>
+        </div>
       ) : (
         <ul className="divide-y divide-[var(--color-rule)]">
           {threads.map((t) => (
-            <li key={t.id} className="py-4">
+            <li key={t.id} className="py-5">
               <Link
                 className="block hover:text-[var(--color-accent)]"
                 href={`/app/threads/${t.id}` as Route}
               >
-                <p className="font-mono text-[0.8rem] text-[var(--color-ink-muted)]">
-                  {t.id.slice(0, 8)}
+                <p className="font-serif text-[1.1rem]">
+                  {formatPeers(t.peerEmails)}
                 </p>
-                <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
+                <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
                   Started {new Date(t.createdAt).toLocaleString()}
                 </p>
               </Link>
