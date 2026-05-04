@@ -104,13 +104,21 @@ export function MessageStream({
     [fetchSenderKeys, decryptOne],
   );
 
+  // Cursor for "what's the latest message we've already shown." Used on
+  // first load to avoid re-fetching history we already have, and as the
+  // ?since= for the initial SSE connection. Resets per threadId.
+  const sinceRef = useRef<string>(new Date(0).toISOString());
+
   useEffect(() => {
     let cancelled = false;
     let es: EventSource | null = null;
 
     const open = () => {
       if (cancelled || es) return;
-      es = new EventSource(`/api/threads/${threadId}/stream`);
+      const url =
+        `/api/threads/${threadId}/stream` +
+        `?since=${encodeURIComponent(sinceRef.current)}`;
+      es = new EventSource(url);
       es.addEventListener("open", () => {
         if (!cancelled) setConnState("open");
       });
@@ -120,6 +128,7 @@ export function MessageStream({
       es.addEventListener("message", (ev) => {
         try {
           const m = JSON.parse((ev as MessageEvent<string>).data) as ServerMsg;
+          if (m.sentAt > sinceRef.current) sinceRef.current = m.sentAt;
           void handleServerMsg(m);
         } catch {
           // malformed, drop
@@ -136,7 +145,7 @@ export function MessageStream({
     // Pause the stream when the tab is hidden — saves a server-side DB
     // poll every 1.5s for every backgrounded thread tab. EventSource has
     // no built-in way to do this, so we tear down on hide and rebuild on
-    // show. The server's Last-Event-ID resume means no messages are lost.
+    // show. The since-cursor below means no messages are lost.
     const onVisibility = () => {
       if (document.visibilityState === "visible") open();
       else close();
@@ -145,6 +154,27 @@ export function MessageStream({
     (async () => {
       await getOrCreateDevice();
       secretKeysRef.current = await getAllSecretKeys();
+      if (cancelled) return;
+
+      // Load full history once before opening the stream — otherwise a
+      // user reloading a thread page would only see new messages.
+      try {
+        const r = await fetch(
+          `/api/threads/${threadId}/messages?since=${encodeURIComponent(
+            new Date(0).toISOString(),
+          )}`,
+        );
+        if (r.ok) {
+          const { messages } = (await r.json()) as { messages: ServerMsg[] };
+          for (const m of messages) {
+            if (m.sentAt > sinceRef.current) sinceRef.current = m.sentAt;
+            await handleServerMsg(m);
+          }
+        }
+      } catch {
+        // history fetch failed; SSE will still deliver new messages.
+      }
+
       if (cancelled) return;
       if (document.visibilityState === "visible") open();
       document.addEventListener("visibilitychange", onVisibility);
