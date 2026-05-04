@@ -55,8 +55,8 @@ export function Composer({ threadId }: { threadId: string }) {
       if (!send.ok) throw new Error(`send ${send.status}`);
 
       setText("");
-      // Tell the stream to refetch.
-      window.dispatchEvent(new CustomEvent("trust-app:thread-refresh"));
+      // The SSE stream on the thread page will pick up the new row on its
+      // next server-side poll tick (~1.5s). No manual refresh needed.
     } catch (err) {
       setError(err instanceof Error ? err.message : "send failed");
     } finally {

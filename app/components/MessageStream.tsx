@@ -15,7 +15,7 @@ type ServerMsg = {
 type SenderKey = {
   id: string;
   userId: string;
-  publicKey: string; // base64
+  publicKey: string;
 };
 
 type RenderedMsg = {
@@ -25,6 +25,11 @@ type RenderedMsg = {
   sentAt: string;
 };
 
+// Real-time message stream via Server-Sent Events.
+// Replaces the prior 4-second polling design. The browser's EventSource
+// handles reconnection with Last-Event-ID, so transient network drops
+// resume from the last delivered message without missing or duplicating.
+
 export function MessageStream({
   threadId,
   myUserId,
@@ -33,12 +38,16 @@ export function MessageStream({
   myUserId: string;
 }) {
   const [msgs, setMsgs] = useState<RenderedMsg[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const sinceRef = useRef<string>(new Date(0).toISOString());
-  const senderKeyCache = useRef<Map<string, Uint8Array>>(new Map());
+  const [connState, setConnState] = useState<"connecting" | "open" | "closed">(
+    "connecting",
+  );
+
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const senderKeyCacheRef = useRef<Map<string, Uint8Array>>(new Map());
+  const secretKeysRef = useRef<Uint8Array[]>([]);
 
   const fetchSenderKeys = useCallback(async (userIds: string[]) => {
-    const need = userIds.filter((u) => !senderKeyCache.current.has(u));
+    const need = userIds.filter((u) => !senderKeyCacheRef.current.has(u));
     if (need.length === 0) return;
     const r = await fetch("/api/sender-keys", {
       method: "POST",
@@ -47,87 +56,95 @@ export function MessageStream({
     });
     if (!r.ok) return;
     const { keys } = (await r.json()) as { keys: SenderKey[] };
-    // For each user, cache the FIRST returned active pubkey. PR-05 will let
-    // the client try multiple sender devices when the first decrypt fails.
     for (const k of keys) {
-      if (!senderKeyCache.current.has(k.userId)) {
-        senderKeyCache.current.set(k.userId, b64decode(k.publicKey));
+      if (!senderKeyCacheRef.current.has(k.userId)) {
+        senderKeyCacheRef.current.set(k.userId, b64decode(k.publicKey));
       }
     }
   }, []);
 
-  const tick = useCallback(async () => {
-    try {
-      // Make sure a device exists locally even if we never need its secret
-      // (sender path); decryption uses every generation we have on hand.
-      await getOrCreateDevice();
-      const secretKeys = await getAllSecretKeys();
-
-      const url = `/api/threads/${threadId}/messages?since=${encodeURIComponent(sinceRef.current)}`;
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`fetch ${r.status}`);
-      const { messages } = (await r.json()) as { messages: ServerMsg[] };
-      if (messages.length === 0) return;
-
-      const senders = Array.from(new Set(messages.map((m) => m.senderId)));
-      await fetchSenderKeys(senders);
-
-      const decoded: RenderedMsg[] = [];
-      for (const m of messages) {
-        const senderPub = senderKeyCache.current.get(m.senderId);
-        if (!senderPub) continue;
-        let text: string | null = null;
-        for (const sk of secretKeys) {
-          try {
-            text = decryptFromSender({
-              ciphertext: b64decode(m.ciphertext),
-              nonce: b64decode(m.nonce),
-              senderPublicKey: senderPub,
-              recipientSecretKey: sk,
-            });
-            break;
-          } catch {
-            // wrong key generation — try next
-          }
-        }
-        if (text !== null) {
-          decoded.push({
-            id: m.id,
-            senderId: m.senderId,
-            text,
-            sentAt: m.sentAt,
+  const decryptOne = useCallback(
+    (m: ServerMsg, senderPub: Uint8Array): string | null => {
+      for (const sk of secretKeysRef.current) {
+        try {
+          return decryptFromSender({
+            ciphertext: b64decode(m.ciphertext),
+            nonce: b64decode(m.nonce),
+            senderPublicKey: senderPub,
+            recipientSecretKey: sk,
           });
+        } catch {
+          // wrong key generation — try next
         }
       }
+      return null;
+    },
+    [],
+  );
 
-      if (decoded.length > 0) {
-        sinceRef.current = decoded[decoded.length - 1].sentAt;
-        setMsgs((prev) => [...prev, ...decoded]);
+  const handleServerMsg = useCallback(
+    async (m: ServerMsg) => {
+      if (seenIdsRef.current.has(m.id)) return;
+      seenIdsRef.current.add(m.id);
+
+      if (!senderKeyCacheRef.current.has(m.senderId)) {
+        await fetchSenderKeys([m.senderId]);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "stream error");
-    }
-  }, [threadId, fetchSenderKeys]);
+      const senderPub = senderKeyCacheRef.current.get(m.senderId);
+      if (!senderPub) return;
+
+      const text = decryptOne(m, senderPub);
+      if (text === null) return;
+
+      setMsgs((prev) => [
+        ...prev,
+        { id: m.id, senderId: m.senderId, text, sentAt: m.sentAt },
+      ]);
+    },
+    [fetchSenderKeys, decryptOne],
+  );
 
   useEffect(() => {
-    void tick();
-    const t = setInterval(() => void tick(), 4000);
-    const onRefresh = () => void tick();
-    window.addEventListener("trust-app:thread-refresh", onRefresh);
-    window.addEventListener("trust-app:device-rotated", onRefresh);
+    let cancelled = false;
+    let es: EventSource | null = null;
+
+    (async () => {
+      await getOrCreateDevice();
+      secretKeysRef.current = await getAllSecretKeys();
+      if (cancelled) return;
+
+      const url = `/api/threads/${threadId}/stream`;
+      es = new EventSource(url);
+
+      es.addEventListener("open", () => {
+        if (!cancelled) setConnState("open");
+      });
+      es.addEventListener("error", () => {
+        if (!cancelled) setConnState("connecting");
+      });
+      es.addEventListener("message", (ev) => {
+        try {
+          const m = JSON.parse((ev as MessageEvent<string>).data) as ServerMsg;
+          void handleServerMsg(m);
+        } catch {
+          // malformed, drop
+        }
+      });
+    })();
+
     return () => {
-      clearInterval(t);
-      window.removeEventListener("trust-app:thread-refresh", onRefresh);
-      window.removeEventListener("trust-app:device-rotated", onRefresh);
+      cancelled = true;
+      setConnState("closed");
+      es?.close();
     };
-  }, [tick]);
+  }, [threadId, handleServerMsg]);
 
   return (
     <div className="mt-8">
-      {error && (
-        <p className="mb-4 text-xs text-red-700">stream: {error}</p>
+      {connState === "connecting" && msgs.length === 0 && (
+        <p className="text-xs text-[var(--color-ink-muted)]">connecting…</p>
       )}
-      {msgs.length === 0 ? (
+      {msgs.length === 0 && connState === "open" ? (
         <p className="text-sm text-[var(--color-ink-muted)]">
           No messages yet for this device.
         </p>
