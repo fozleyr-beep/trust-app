@@ -2,7 +2,14 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // ASSUMPTION: /trust and / are public; everything else requires auth.
 // Replace this matcher when handoff.yaml's route map lands.
-const isPublic = createRouteMatcher(["/", "/trust", "/api/health"]);
+const isPublic = createRouteMatcher([
+  "/",
+  "/trust",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/health",
+  "/api/webhooks/(.*)",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublic(req)) {
