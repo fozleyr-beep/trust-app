@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { getOrCreateDevice } from "@/lib/crypto/keystore";
 import { b64decode, b64encode, encryptForDevice } from "@/lib/crypto/messaging";
 
@@ -28,17 +28,23 @@ export function Composer({ threadId }: { threadId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // React state updates aren't synchronous, so the `busy` boolean isn't a
+  // reliable guard against a fast double-Enter. The ref is.
+  const sendingRef = useRef(false);
+
   const remaining = MAX_LEN - text.length;
   const tooLong = remaining < 0;
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
+    if (sendingRef.current) return;
     const draft = text.trim();
     if (!draft || busy) return;
     if (draft.length > MAX_LEN) {
       setError(`message too long (${draft.length} / ${MAX_LEN})`);
       return;
     }
+    sendingRef.current = true;
     setBusy(true);
     setError(null);
 
@@ -94,6 +100,7 @@ export function Composer({ threadId }: { threadId: string }) {
         }),
       );
     } finally {
+      sendingRef.current = false;
       setBusy(false);
     }
   }
