@@ -8,8 +8,16 @@ type RecipientKey = {
   id: string;
   userId: string;
   deviceId: string;
-  publicKey: string; // base64
+  publicKey: string;
 };
+
+// Window event contract for optimistic UI:
+//
+//   trust-app:optimistic-send  { tempId, text, sentAt }
+//   trust-app:optimistic-failed { tempId }
+//
+// MessageStream listens for these and renders the message immediately
+// (with a "sending" affordance until the SSE delivers the real row).
 
 export function Composer({ threadId }: { threadId: string }) {
   const [text, setText] = useState("");
@@ -18,9 +26,22 @@ export function Composer({ threadId }: { threadId: string }) {
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim() || busy) return;
+    const draft = text.trim();
+    if (!draft || busy) return;
     setBusy(true);
     setError(null);
+
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const sentAt = new Date().toISOString();
+    // Optimistic dispatch fires before the network round-trip so the user
+    // sees their own message immediately.
+    window.dispatchEvent(
+      new CustomEvent("trust-app:optimistic-send", {
+        detail: { tempId, text: draft, sentAt },
+      }),
+    );
+    setText("");
+
     try {
       const device = await getOrCreateDevice();
       const r = await fetch(`/api/threads/${threadId}/recipient-keys`);
@@ -28,24 +49,21 @@ export function Composer({ threadId }: { threadId: string }) {
       const { keys } = (await r.json()) as { keys: RecipientKey[] };
 
       if (keys.length === 0) {
-        setError("No active device keys to encrypt to.");
-        return;
+        throw new Error("No active device keys to encrypt to.");
       }
 
-      const fanout = await Promise.all(
-        keys.map(async (k) => {
-          const { ciphertext, nonce } = encryptForDevice({
-            plaintext: text,
-            recipientPublicKey: b64decode(k.publicKey),
-            senderSecretKey: device.secretKey,
-          });
-          return {
-            recipientDeviceKeyId: k.id,
-            ciphertext: b64encode(ciphertext),
-            nonce: b64encode(nonce),
-          };
-        }),
-      );
+      const fanout = keys.map((k) => {
+        const { ciphertext, nonce } = encryptForDevice({
+          plaintext: draft,
+          recipientPublicKey: b64decode(k.publicKey),
+          senderSecretKey: device.secretKey,
+        });
+        return {
+          recipientDeviceKeyId: k.id,
+          ciphertext: b64encode(ciphertext),
+          nonce: b64encode(nonce),
+        };
+      });
 
       const send = await fetch(`/api/threads/${threadId}/messages`, {
         method: "POST",
@@ -54,11 +72,16 @@ export function Composer({ threadId }: { threadId: string }) {
       });
       if (!send.ok) throw new Error(`send ${send.status}`);
 
-      setText("");
-      // The SSE stream on the thread page will pick up the new row on its
-      // next server-side poll tick (~1.5s). No manual refresh needed.
+      // SSE will replace the optimistic entry within ~1.5s on its next
+      // server-side poll tick.
     } catch (err) {
       setError(err instanceof Error ? err.message : "send failed");
+      setText(draft); // restore draft so the user can retry
+      window.dispatchEvent(
+        new CustomEvent("trust-app:optimistic-failed", {
+          detail: { tempId },
+        }),
+      );
     } finally {
       setBusy(false);
     }
@@ -81,9 +104,7 @@ export function Composer({ threadId }: { threadId: string }) {
         >
           {busy ? "Encrypting…" : "Send"}
         </button>
-        {error && (
-          <span className="text-xs text-red-700">{error}</span>
-        )}
+        {error && <span className="text-xs text-red-700">{error}</span>}
       </div>
     </form>
   );

@@ -23,12 +23,19 @@ type RenderedMsg = {
   senderId: string;
   text: string;
   sentAt: string;
+  state: "sending" | "delivered" | "failed";
 };
 
 // Real-time message stream via Server-Sent Events.
-// Replaces the prior 4-second polling design. The browser's EventSource
-// handles reconnection with Last-Event-ID, so transient network drops
-// resume from the last delivered message without missing or duplicating.
+// Browser EventSource handles reconnection with Last-Event-ID, so transient
+// network drops resume from the last delivered message without missing or
+// duplicating.
+//
+// Optimistic UI: <Composer> dispatches `trust-app:optimistic-send` with
+// {tempId, text, sentAt} immediately on click. We render that as
+// state="sending" so the user sees it instantly. When the SSE delivery for
+// the real row arrives, we match by sender + plaintext and replace the
+// optimistic entry with the canonical row.
 
 export function MessageStream({
   threadId,
@@ -96,18 +103,91 @@ export function MessageStream({
       const text = decryptOne(m, senderPub);
       if (text === null) return;
 
-      setMsgs((prev) => [
-        ...prev,
-        { id: m.id, senderId: m.senderId, text, sentAt: m.sentAt },
-      ]);
+      setMsgs((prev) => {
+        // If this is one of our own sends arriving back, replace the
+        // earliest matching optimistic entry instead of duplicating.
+        if (m.senderId === myUserId) {
+          const idx = prev.findIndex(
+            (x) =>
+              x.state === "sending" &&
+              x.senderId === myUserId &&
+              x.text === text,
+          );
+          if (idx !== -1) {
+            const next = prev.slice();
+            next[idx] = {
+              id: m.id,
+              senderId: m.senderId,
+              text,
+              sentAt: m.sentAt,
+              state: "delivered",
+            };
+            return next;
+          }
+        }
+        return [
+          ...prev,
+          {
+            id: m.id,
+            senderId: m.senderId,
+            text,
+            sentAt: m.sentAt,
+            state: "delivered",
+          },
+        ];
+      });
     },
-    [fetchSenderKeys, decryptOne],
+    [fetchSenderKeys, decryptOne, myUserId],
   );
 
   // Cursor for "what's the latest message we've already shown." Used on
   // first load to avoid re-fetching history we already have, and as the
   // ?since= for the initial SSE connection. Resets per threadId.
   const sinceRef = useRef<string>(new Date(0).toISOString());
+
+  // Optimistic UI events from <Composer>
+  useEffect(() => {
+    const onOptimisticSend = (e: Event) => {
+      const detail = (e as CustomEvent<{
+        tempId: string;
+        text: string;
+        sentAt: string;
+      }>).detail;
+      setMsgs((prev) => [
+        ...prev,
+        {
+          id: detail.tempId,
+          senderId: myUserId,
+          text: detail.text,
+          sentAt: detail.sentAt,
+          state: "sending",
+        },
+      ]);
+    };
+    const onOptimisticFailed = (e: Event) => {
+      const { tempId } = (e as CustomEvent<{ tempId: string }>).detail;
+      setMsgs((prev) =>
+        prev.map((x) =>
+          x.id === tempId ? { ...x, state: "failed" } : x,
+        ),
+      );
+    };
+    window.addEventListener("trust-app:optimistic-send", onOptimisticSend);
+    window.addEventListener(
+      "trust-app:optimistic-failed",
+      onOptimisticFailed,
+    );
+    return () => {
+      window.removeEventListener(
+        "trust-app:optimistic-send",
+        onOptimisticSend,
+      );
+      window.removeEventListener(
+        "trust-app:optimistic-failed",
+        onOptimisticFailed,
+      );
+    };
+  }, [myUserId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -145,7 +225,7 @@ export function MessageStream({
     // Pause the stream when the tab is hidden — saves a server-side DB
     // poll every 1.5s for every backgrounded thread tab. EventSource has
     // no built-in way to do this, so we tear down on hide and rebuild on
-    // show. The since-cursor below means no messages are lost.
+    // show. The since-cursor means no messages are lost.
     const onVisibility = () => {
       if (document.visibilityState === "visible") open();
       else close();
@@ -189,9 +269,25 @@ export function MessageStream({
 
   return (
     <div className="mt-8">
-      {connState === "connecting" && msgs.length === 0 && (
-        <p className="text-xs text-[var(--color-ink-muted)]">connecting…</p>
-      )}
+      <div className="mb-4 flex h-4 items-center gap-2 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-[var(--color-ink-muted)]">
+        {connState === "open" ? (
+          <>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+            <span>live</span>
+          </>
+        ) : connState === "connecting" ? (
+          <>
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+            <span>reconnecting…</span>
+          </>
+        ) : (
+          <>
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-ink-muted)]" />
+            <span>paused</span>
+          </>
+        )}
+      </div>
+
       {msgs.length === 0 && connState === "open" ? (
         <p className="text-sm text-[var(--color-ink-muted)]">
           No messages yet for this device.
@@ -200,23 +296,30 @@ export function MessageStream({
         <ul className="space-y-5">
           {msgs.map((m) => {
             const mine = m.senderId === myUserId;
+            const failed = m.state === "failed";
+            const sending = m.state === "sending";
             return (
-              <li
-                key={m.id}
-                className={mine ? "text-right" : "text-left"}
-              >
+              <li key={m.id} className={mine ? "text-right" : "text-left"}>
                 <p
                   className={
                     "inline-block max-w-[42ch] whitespace-pre-wrap rounded px-4 py-2 text-[1.02rem] " +
                     (mine
                       ? "bg-[var(--color-ink)] text-[var(--color-paper)]"
-                      : "bg-[color-mix(in_srgb,var(--color-rule)_60%,transparent)] text-[var(--color-ink)]")
+                      : "bg-[color-mix(in_srgb,var(--color-rule)_60%,transparent)] text-[var(--color-ink)]") +
+                    (sending ? " opacity-60" : "") +
+                    (failed
+                      ? " border border-red-700 bg-red-900 text-[var(--color-paper)]"
+                      : "")
                   }
                 >
                   {m.text}
                 </p>
                 <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-[var(--color-ink-muted)]">
-                  {new Date(m.sentAt).toLocaleTimeString()}
+                  {sending
+                    ? "sending…"
+                    : failed
+                      ? "send failed"
+                      : new Date(m.sentAt).toLocaleTimeString()}
                 </p>
               </li>
             );
