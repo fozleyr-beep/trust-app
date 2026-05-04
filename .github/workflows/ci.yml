@@ -18,7 +18,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run db:check
       - run: npm test
-      - run: npm run build
+      - run: npm run check:bundle
         env:
           # Build doesn't need real values — ClerkProvider is conditional and
           # DATABASE_URL is read lazily, so dummy values keep the build offline.
