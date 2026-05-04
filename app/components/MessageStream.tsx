@@ -108,14 +108,9 @@ export function MessageStream({
     let cancelled = false;
     let es: EventSource | null = null;
 
-    (async () => {
-      await getOrCreateDevice();
-      secretKeysRef.current = await getAllSecretKeys();
-      if (cancelled) return;
-
-      const url = `/api/threads/${threadId}/stream`;
-      es = new EventSource(url);
-
+    const open = () => {
+      if (cancelled || es) return;
+      es = new EventSource(`/api/threads/${threadId}/stream`);
       es.addEventListener("open", () => {
         if (!cancelled) setConnState("open");
       });
@@ -130,12 +125,35 @@ export function MessageStream({
           // malformed, drop
         }
       });
+    };
+
+    const close = () => {
+      es?.close();
+      es = null;
+      if (!cancelled) setConnState("closed");
+    };
+
+    // Pause the stream when the tab is hidden — saves a server-side DB
+    // poll every 1.5s for every backgrounded thread tab. EventSource has
+    // no built-in way to do this, so we tear down on hide and rebuild on
+    // show. The server's Last-Event-ID resume means no messages are lost.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") open();
+      else close();
+    };
+
+    (async () => {
+      await getOrCreateDevice();
+      secretKeysRef.current = await getAllSecretKeys();
+      if (cancelled) return;
+      if (document.visibilityState === "visible") open();
+      document.addEventListener("visibilitychange", onVisibility);
     })();
 
     return () => {
       cancelled = true;
-      setConnState("closed");
-      es?.close();
+      document.removeEventListener("visibilitychange", onVisibility);
+      close();
     };
   }, [threadId, handleServerMsg]);
 

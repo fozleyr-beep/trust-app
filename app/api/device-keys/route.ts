@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { requireDbUser } from "@/lib/auth/current-user";
 import { parseBody } from "@/lib/api/parse";
 import { RegisterDevice } from "@/lib/api/schemas";
+import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   const pub = Buffer.from(body.publicKey, "base64");
 
   // Revoke any prior unrevoked row for this user+device
-  await conn
+  const revoked = await conn
     .update(schema.deviceKeys)
     .set({ revokedAt: new Date() })
     .where(
@@ -31,7 +32,8 @@ export async function POST(req: Request) {
         eq(schema.deviceKeys.deviceId, body.deviceId),
         isNull(schema.deviceKeys.revokedAt),
       ),
-    );
+    )
+    .returning({ id: schema.deviceKeys.id });
 
   const [row] = await conn
     .insert(schema.deviceKeys)
@@ -41,6 +43,14 @@ export async function POST(req: Request) {
       publicKey: pub,
     })
     .returning({ id: schema.deviceKeys.id });
+
+  log.info("device.registered", {
+    userId: me.id,
+    deviceId: body.deviceId,
+    deviceKeyId: row.id,
+    rotated: revoked.length > 0,
+    revokedKeyIds: revoked.map((r) => r.id),
+  });
 
   return NextResponse.json({ id: row.id });
 }
