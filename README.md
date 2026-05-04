@@ -98,3 +98,8 @@ scripts/
 | You can export your full history | `/app/settings` → Export, runs entirely in the browser |
 | You can delete your account | `/app/settings` → Danger zone (typed confirmation) |
 | Server holds metadata, not plaintext | `lib/db/schema.ts` — `messages.ciphertext` is bytea only |
+
+## License
+
+MIT — see [LICENSE](./LICENSE). The `/trust` page describes the security
+model; [SECURITY.md](./SECURITY.md) describes how to report issues.
