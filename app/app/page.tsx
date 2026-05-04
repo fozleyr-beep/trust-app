@@ -28,16 +28,34 @@ export default async function AppPage() {
         Hello, {user?.firstName ?? user?.emailAddresses[0]?.emailAddress}.
       </h1>
       <p className="mt-6 text-[var(--color-ink-soft)]">
-        This is the auth smoke test. In PR-03 it becomes your thread list.
+        Choose a surface.
       </p>
-      <p className="mt-8 text-sm">
-        <Link
-          className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
-          href="/trust"
-        >
-          ← Back to Trust
-        </Link>
-      </p>
+      <ul className="mt-6 space-y-3">
+        <li>
+          <Link
+            className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
+            href={"/app/threads" as Route}
+          >
+            Threads (encrypted, with people) →
+          </Link>
+        </li>
+        <li>
+          <Link
+            className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
+            href={"/app/agent" as Route}
+          >
+            Assistant (server-mediated, with Claude) →
+          </Link>
+        </li>
+        <li>
+          <Link
+            className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
+            href={"/trust" as Route}
+          >
+            Trust contract
+          </Link>
+        </li>
+      </ul>
     </main>
   );
 }
