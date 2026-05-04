@@ -77,12 +77,15 @@ Each PR landed with `npm run typecheck && npm test && npm run build` clean.
 | 23 | `0df9c59` | Rate-limit unit tests + Composer concurrent-send guard. |
 | 24 | `ea75332` | MIT `LICENSE` + Dependabot config. |
 | 25 | `a471a86` | Extract & test the bundle-budget parser. |
+| 26 | `65baf98` | Sync `CLAUDE_CODE_PROMPT.md` with PR-12..25 reality. |
+| 27 | (in flight) | Live deploy. Production URL: **https://trust-app-three.vercel.app**. Vercel project `fozleyr-beeps-projects/trust-app` connected to GitHub, 7 of 9 env vars set, schema applied to Neon (`odd-scene-06932368` in `aws-us-east-1`), Clerk dev app `app_3DGyGaZc5v47bXDEQiYZK1zIf1k` with email-only sign-in. Public surface (`/trust`, `/sign-in`, `/api/health`) verified 200. Auth-protected redirect (`/app` → `/sign-in?redirect_url=…`) verified in browser. |
 
-### Next
+### Outstanding (PR-27 follow-ups)
 
-| PR | Scope | Pre-condition |
-|---|---|---|
-| 27 | Live deploy: Vercel project + Neon prod branch + Clerk webhook URL configuration; smoke-test the deployed `/trust`, `/sign-in`, `/app` end-to-end. | Real accounts, ~30 min. |
+| Item | Why |
+|---|---|
+| Add `ANTHROPIC_API_KEY` to Vercel + redeploy | `/api/agent` returns 500 without it; rest of app works |
+| Add Clerk webhook for `user.created` / `user.updated` / `user.deleted` + set `CLERK_WEBHOOK_SECRET` in Vercel | Lazy-backfill in `lib/auth/current-user.ts` covers v1, but the webhook is the canonical sync. Setup blocked on Svix iframe inside Clerk dashboard not accepting page-level clicks; do via Clerk UI manually |
 
 ### Possible follow-ups (none ordered, none blocked on each other)
 
