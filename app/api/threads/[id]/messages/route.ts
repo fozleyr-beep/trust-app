@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { requireDbUser } from "@/lib/auth/current-user";
 import { parseBody } from "@/lib/api/parse";
 import { SendMessage } from "@/lib/api/schemas";
+import { validateFanout } from "@/lib/messaging/authz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,10 +40,10 @@ export async function POST(
   const parsed = await parseBody(req, SendMessage);
   if (parsed.error) return parsed.error;
 
-  // Authorization: every recipient device key referenced in the fanout must
-  // belong to a current member of this thread. Without this, a malicious
-  // client could write ciphertext rows pointing at arbitrary device keys —
-  // pollution at minimum, exfiltration channel at worst.
+  // Authorization (extracted to lib/messaging/authz.ts so it has unit
+  // tests). Without this, a malicious client could write ciphertext rows
+  // pointing at arbitrary device keys — pollution at minimum, exfiltration
+  // channel at worst.
   const targetKeyIds = parsed.data.fanout.map((f) => f.recipientDeviceKeyId);
   const targetDevices = await conn
     .select({
@@ -52,29 +53,18 @@ export async function POST(
     .from(schema.deviceKeys)
     .where(inArray(schema.deviceKeys.id, targetKeyIds));
 
-  if (targetDevices.length !== targetKeyIds.length) {
-    return NextResponse.json(
-      { error: "one or more recipientDeviceKeyId are unknown" },
-      { status: 400 },
-    );
-  }
-
   const memberRows = await conn
     .select({ userId: schema.threadMembers.userId })
     .from(schema.threadMembers)
     .where(eq(schema.threadMembers.threadId, threadId));
-  const memberIds = new Set(memberRows.map((m) => m.userId));
 
-  for (const d of targetDevices) {
-    if (!memberIds.has(d.userId)) {
-      return NextResponse.json(
-        {
-          error:
-            "recipientDeviceKeyId belongs to a user who is not a member of this thread",
-        },
-        { status: 403 },
-      );
-    }
+  const authz = validateFanout({
+    fanout: parsed.data.fanout,
+    targetDevices,
+    threadMemberUserIds: memberRows.map((m) => m.userId),
+  });
+  if (!authz.ok) {
+    return NextResponse.json({ error: authz.error }, { status: authz.status });
   }
 
   const rows = parsed.data.fanout.map((f) => {

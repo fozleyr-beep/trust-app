@@ -23,7 +23,7 @@ type RenderedMsg = {
   senderId: string;
   text: string;
   sentAt: string;
-  state: "sending" | "delivered" | "failed";
+  state: "sending" | "delivered" | "failed" | "unreadable";
 };
 
 // Real-time message stream via Server-Sent Events.
@@ -101,7 +101,24 @@ export function MessageStream({
       if (!senderPub) return;
 
       const text = decryptOne(m, senderPub);
-      if (text === null) return;
+
+      // Decrypt failed for every key we hold — sender may have rotated and
+      // we never received a copy encrypted to one of our current devices,
+      // or our keystore was cleared. Surface a placeholder rather than
+      // silently dropping; the user should know something is there.
+      if (text === null) {
+        setMsgs((prev) => [
+          ...prev,
+          {
+            id: m.id,
+            senderId: m.senderId,
+            text: "[encrypted — this device cannot decrypt]",
+            sentAt: m.sentAt,
+            state: "unreadable",
+          },
+        ]);
+        return;
+      }
 
       setMsgs((prev) => {
         // If this is one of our own sends arriving back, replace the
@@ -298,14 +315,17 @@ export function MessageStream({
             const mine = m.senderId === myUserId;
             const failed = m.state === "failed";
             const sending = m.state === "sending";
+            const unreadable = m.state === "unreadable";
             return (
               <li key={m.id} className={mine ? "text-right" : "text-left"}>
                 <p
                   className={
                     "inline-block max-w-[42ch] whitespace-pre-wrap rounded px-4 py-2 text-[1.02rem] " +
-                    (mine
-                      ? "bg-[var(--color-ink)] text-[var(--color-paper)]"
-                      : "bg-[color-mix(in_srgb,var(--color-rule)_60%,transparent)] text-[var(--color-ink)]") +
+                    (unreadable
+                      ? "border border-dashed border-[var(--color-ink-muted)] bg-transparent italic text-[var(--color-ink-muted)]"
+                      : mine
+                        ? "bg-[var(--color-ink)] text-[var(--color-paper)]"
+                        : "bg-[color-mix(in_srgb,var(--color-rule)_60%,transparent)] text-[var(--color-ink)]") +
                     (sending ? " opacity-60" : "") +
                     (failed
                       ? " border border-red-700 bg-red-900 text-[var(--color-paper)]"
@@ -319,7 +339,9 @@ export function MessageStream({
                     ? "sending…"
                     : failed
                       ? "send failed"
-                      : new Date(m.sentAt).toLocaleTimeString()}
+                      : unreadable
+                        ? "this device has no key for this message"
+                        : new Date(m.sentAt).toLocaleTimeString()}
                 </p>
               </li>
             );

@@ -87,12 +87,21 @@ export function Composer({ threadId }: { threadId: string }) {
     }
   }
 
+  function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Enter sends; Shift+Enter inserts a newline (default behaviour).
+    if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      void handleSend(e as unknown as React.FormEvent);
+    }
+  }
+
   return (
     <form onSubmit={handleSend} className="mt-8 space-y-3">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Write to this thread…"
+        onKeyDown={handleKey}
+        placeholder="Write to this thread… (Enter to send, Shift+Enter for newline)"
         rows={3}
         className="block w-full resize-none border border-[var(--color-rule)] bg-transparent px-4 py-3 font-serif text-[1.05rem] outline-none focus:border-[var(--color-ink)]"
       />
