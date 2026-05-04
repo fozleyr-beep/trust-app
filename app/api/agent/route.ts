@@ -15,7 +15,6 @@ export async function POST(req: Request) {
   const me = await requireDbUser();
 
   // 6 requests per minute per user, burst of 6.
-  // ASSUMPTION: tune from DECISIONS.md if a budget is specified.
   const gate = rateLimit(`agent:${me.id}`, {
     capacity: 6,
     refillPerSecond: 0.1,

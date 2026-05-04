@@ -15,10 +15,6 @@ import nacl from "tweetnacl";
 //   Secret keys never leave this browser. We never back them up. If the user
 //   clears storage, every generation goes with it; messages encrypted to any
 //   of them become unreadable on this device. Stated on /trust.
-//
-// ASSUMPTION: IndexedDB storage is acceptable. If DECISIONS.md commits to
-// hardware-backed keys (WebAuthn/Passkeys for crypto operations) or to a
-// passphrase-wrapped backup model, replace this module.
 
 const DB_NAME = "trust-app";
 const STORE = "device";

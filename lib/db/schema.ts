@@ -10,11 +10,9 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-// PR-03 messaging skeleton.
-// ASSUMPTION: server stores ciphertext bytes only — no plaintext, no keys
-// that decrypt user-to-user messages. Confirm against DECISIONS.md when it
-// lands; if a different model is locked (e.g. server-mediated MLS group
-// state) replace this whole file.
+// Messaging schema. Server stores ciphertext bytes only — no plaintext, no
+// keys that decrypt user-to-user messages, no sealed-sender (sender id is on
+// the row by design so authz can enforce thread membership on send).
 
 const bytea = customType<{ data: Buffer; default: false }>({
   dataType() {
@@ -38,9 +36,9 @@ export const users = pgTable("users", {
 
 // ─── device_keys ───────────────────────────────────────────────────────
 // One row per device per user. publicKey is the X25519 box pub.
-// The private key never leaves the device; we never see it.
-// ASSUMPTION: device-scoped keys (multi-device support). If DECISIONS.md
-// commits to per-user single-device keys, drop deviceId and unique on userId.
+// The private key never leaves the device; we never see it. Device-scoped
+// (not per-user) so a user can have multiple active devices and send
+// fan-outs encrypted per device.
 export const deviceKeys = pgTable(
   "device_keys",
   {

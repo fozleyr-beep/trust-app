@@ -1,0 +1,324 @@
+# trust-app handoff
+#
+# Source of truth for tokens, agents, data model, flows, and routes.
+# Reverse-engineered from the codebase at commit 0b3094c (PR-11).
+# Edit alongside DECISIONS.md when locking new choices.
+
+stack:
+  framework: next@15.5.15
+  language: typescript@5.7-strict
+  styling: tailwind@4-css-first
+  db: postgres-on-neon
+  orm: drizzle@0.36
+  auth: clerk@6
+  ai_sdk: "@anthropic-ai/sdk"
+  ai_model: claude-sonnet-4-5
+  crypto: tweetnacl  # crypto_box: X25519 + XSalsa20-Poly1305
+  validation: zod@4
+  tests: vitest
+
+# ─── tokens ────────────────────────────────────────────────────────────
+# Currently placeholders. Replace this block when visual identity is locked.
+tokens:
+  fonts:
+    sans: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    serif: "ui-serif, 'Iowan Old Style', 'Apple Garamond', Georgia, serif"
+    mono: "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace"
+  colors:
+    ink: "#0e0f10"
+    ink-soft: "#2a2c2f"
+    ink-muted: "#5a5d63"
+    paper: "#fafaf7"
+    rule: "#e6e4dc"
+    accent: "#6b3f2a"
+
+# ─── agents ────────────────────────────────────────────────────────────
+agents:
+  assistant:
+    model: claude-sonnet-4-5
+    max_tokens: 1024
+    rate_limit:
+      capacity: 6
+      refill_per_second: 0.1   # 6 / minute / user
+    system_prompt: |
+      You are the assistant for trust-app. You are a separate conversation
+      from the user's encrypted messages with other people, and you have
+      no access to those. Be concise and honest. If you don't know
+      something, say so.
+    isolation:
+      enforced_by: tests/agent-isolation.test.ts
+      forbidden_imports:
+        - schema.messages
+        - schema.threads
+        - schema.threadMembers
+        - schema.deviceKeys
+        - "@/lib/db/threads"
+
+# ─── data model ────────────────────────────────────────────────────────
+data_model:
+  users:
+    pk: id (uuid)
+    fields:
+      clerk_id: text, unique, not null
+      email: text, not null
+      created_at: timestamptz, default now
+      updated_at: timestamptz, default now
+      deleted_at: timestamptz, nullable
+    notes:
+      - mirrored from Clerk via /api/webhooks/clerk
+      - lazy-backfilled by lib/auth/current-user.ts on first authed request
+
+  device_keys:
+    pk: id (uuid)
+    fields:
+      user_id: uuid, fk users.id, on delete cascade
+      device_id: text, not null
+      public_key: bytea, not null
+      created_at: timestamptz, default now
+      revoked_at: timestamptz, nullable
+    indexes:
+      - (user_id, device_id)
+    notes:
+      - secret half NEVER on server
+      - rotation = new row + prior rows for same (user_id, device_id) get revoked_at
+
+  threads:
+    pk: id (uuid)
+    fields:
+      created_by: uuid, fk users.id
+      created_at: timestamptz, default now
+    notes:
+      - no subject/title server-side; that's part of the encrypted stream
+
+  thread_members:
+    pk: (thread_id, user_id)
+    fields:
+      thread_id: uuid, fk threads.id, on delete cascade
+      user_id: uuid, fk users.id, on delete cascade
+      added_at: timestamptz, default now
+
+  messages:
+    pk: id (uuid)
+    fields:
+      thread_id: uuid, fk threads.id, on delete cascade
+      sender_id: uuid, fk users.id
+      recipient_device_key_id: uuid, fk device_keys.id
+      ciphertext: bytea, not null
+      nonce: bytea, not null
+      cipher_size: integer, not null
+      sent_at: timestamptz, default now
+    indexes:
+      - (thread_id, sent_at)
+      - (recipient_device_key_id)
+    notes:
+      - one row per (recipient_device) per send (per-device fanout)
+      - server holds ZERO plaintext and NO key that can decrypt these
+
+# ─── flows ─────────────────────────────────────────────────────────────
+flows:
+
+  - name: first_sign_in
+    steps:
+      - user signs in via Clerk-hosted UI at /sign-in
+      - redirect to /app
+      - DeviceBootstrap component generates X25519 keypair in browser
+      - keypair persisted to IndexedDB
+      - public key POSTed to /api/device-keys (registers + revokes prior for same deviceId)
+      - if Clerk webhook hasn't fired yet, requireDbUser() creates the
+        users row from currentUser() on first protected request
+
+  - name: send_encrypted_message
+    steps:
+      - user types in <Composer> on /app/threads/[id]
+      - client GETs /api/threads/[id]/recipient-keys (active keys of all members)
+      - for each recipient device pubkey, client encrypts the plaintext with
+        tweetnacl.box (sender's secret + recipient's pub + random nonce)
+      - client POSTs the fanout array to /api/threads/[id]/messages
+      - server validates each recipientDeviceKeyId belongs to a current
+        thread member (rejects 403 if not) and writes one row per entry
+      - <MessageStream> on each peer's open thread page polls every 4s,
+        decrypts each message it can, renders
+
+  - name: ask_assistant
+    steps:
+      - user types in <AgentChat> on /app/agent
+      - client POSTs full conversation history to /api/agent
+      - server checks rate limit (6 req/min/user)
+      - server validates body via Zod
+      - server streams Anthropic Sonnet 4.5 response as text deltas
+      - server logs token usage + latency on completion
+
+  - name: rotate_device_key
+    steps:
+      - user clicks "Rotate this device's key" on /app/settings
+      - confirmation modal with explanation of what changes
+      - client generates new tweetnacl.box keypair
+      - new keypair appended to IndexedDB store under same deviceId
+      - new pubkey POSTed to /api/device-keys (server revokes prior, inserts new)
+      - past messages remain decryptable; future outgoing uses new key
+
+  - name: account_delete
+    steps:
+      - user types DELETE on /app/settings
+      - POST /api/me/delete
+      - server revokes every device_key for this user
+      - server soft-deletes the users row (deleted_at = now)
+      - server hard-deletes from Clerk via admin API
+      - client wipes IndexedDB device store
+      - browser redirects to /
+
+# ─── routes ────────────────────────────────────────────────────────────
+routes:
+  public:
+    - GET /                         # redirects to /trust
+    - GET /trust
+    - GET /sign-in/*
+    - GET /sign-up/*
+    - GET /api/health
+    - POST /api/webhooks/clerk      # svix-verified
+
+  authed:
+    - GET /app
+    - GET /app/agent
+    - GET /app/settings
+    - GET /app/threads
+    - GET /app/threads/new
+    - POST <action: createThread>
+    - GET /app/threads/[id]
+    - POST /api/device-keys
+    - POST /api/sender-keys
+    - GET /api/threads/[id]/recipient-keys
+    - GET /api/threads/[id]/messages
+    - POST /api/threads/[id]/messages
+    - GET /api/me/threads
+    - POST /api/me/delete
+    - POST /api/agent
+
+# ─── api wire schemas ──────────────────────────────────────────────────
+api:
+
+  /api/device-keys:
+    method: POST
+    auth: clerk session
+    body: { deviceId: string, publicKey: base64 }
+    side_effects:
+      - revoke prior unrevoked rows for (userId, deviceId)
+      - insert new device_keys row
+    returns: { id: uuid }
+
+  /api/sender-keys:
+    method: POST
+    auth: clerk session
+    body: { userIds: uuid[] }
+    returns: { keys: [{ id, userId, publicKey: base64 }] }
+
+  /api/threads/[id]/recipient-keys:
+    method: GET
+    auth: clerk session + thread membership
+    returns: { keys: [{ id, userId, deviceId, publicKey: base64 }] }
+
+  /api/threads/[id]/messages:
+    POST:
+      auth: clerk session + thread membership
+      body:
+        fanout:
+          - { recipientDeviceKeyId: uuid, ciphertext: base64, nonce: base64 }
+      authorization:
+        - every recipientDeviceKeyId must belong to a current thread member
+      side_effects:
+        - one messages row per fanout entry
+      returns: { ok: true, written: number }
+    GET:
+      auth: clerk session
+      query: ?since=<iso>
+      limit: 200 rows
+      returns: { messages: [{ id, senderId, ciphertext, nonce, sentAt }] }
+
+  /api/agent:
+    method: POST
+    auth: clerk session
+    rate_limit: 6/min/user
+    body: { messages: [{ role: 'user'|'assistant', content: string }] }
+    returns:
+      type: text/plain stream
+      content: raw text-delta chunks; client appends as they arrive
+
+  /api/me/threads:
+    method: GET
+    auth: clerk session
+    returns: { threads: [{ id, createdAt }] }
+
+  /api/me/delete:
+    method: POST
+    auth: clerk session
+    side_effects:
+      - revoke all device_keys for the user
+      - soft-delete users row
+      - hard-delete from Clerk
+    returns: { ok: true }
+
+  /api/webhooks/clerk:
+    method: POST
+    auth: svix-signed payload
+    handles:
+      user.created: upsert users row
+      user.updated: upsert users row (refresh email)
+      user.deleted: soft-delete users row
+
+  /api/health:
+    method: GET
+    auth: public
+    returns: { ok: true, ts: iso }
+
+# ─── security headers ──────────────────────────────────────────────────
+security_headers:
+  Content-Security-Policy:
+    enforced: true
+    nonce_per_request: true
+    directives:
+      - default-src 'self'
+      - script-src 'self' 'nonce-XXX' 'strict-dynamic' https://*.clerk.accounts.dev https://challenges.cloudflare.com
+      - style-src 'self' 'unsafe-inline'
+      - img-src 'self' data: https://img.clerk.com
+      - font-src 'self' data:
+      - connect-src 'self' https://*.clerk.accounts.dev wss://*.clerk.accounts.dev https://clerk-telemetry.com
+      - frame-src 'self' https://challenges.cloudflare.com https://*.clerk.accounts.dev
+      - frame-ancestors 'none'
+      - form-action 'self'
+      - base-uri 'self'
+      - object-src 'none'
+      - worker-src 'self' blob:
+      - upgrade-insecure-requests
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# ─── observability ─────────────────────────────────────────────────────
+logging:
+  format: json-to-stdout (structured)
+  events:
+    - auth.backfilled         { clerkId, userId }
+    - webhook.clerk.received  { svixId, type, clerkId }
+    - webhook.clerk.invalid_signature { svixId }
+    - agent.completed         { userId, model, turns, inputTokens, outputTokens, latencyMs }
+    - agent.rate_limited      { userId, retryAfterMs }
+    - agent.failed            { userId, model, latencyMs, error }
+    - account.deleted         { userId, clerkId }
+    - account.delete.clerk_failed { userId, clerkId, error }
+
+# ─── tests ─────────────────────────────────────────────────────────────
+tests:
+  crypto_round_trip:
+    file: lib/crypto/messaging.test.ts
+    asserts:
+      - Alice→Bob round-trip equals input
+      - Eve cannot decrypt with wrong secret
+      - Wrong sender pubkey detected (Poly1305 tag)
+      - Single-byte ciphertext flip detected
+      - Same plaintext → different ciphertexts (random nonces)
+  agent_isolation:
+    file: tests/agent-isolation.test.ts
+    asserts:
+      - app/api/agent/ does not import any of the messaging schema or
+        db/threads helpers

@@ -7,13 +7,8 @@ import { and, eq, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireDbUser } from "@/lib/auth/current-user";
 
-// Creates a 1:1 thread between the signed-in user and the recipient by email.
-// PR-03 scope: shell only — no encryption, no message body. PR-04 adds the
-// composer that produces ciphertext per recipient device.
-//
-// ASSUMPTION: 1:1 threads keyed by participant pair are not deduped server-side.
-// If DECISIONS.md commits to "one canonical thread per pair", add a unique
-// index over (least(user_a,user_b), greatest(user_a,user_b)) and an upsert.
+// 1:1 threads are not deduped server-side: a user may have multiple threads with
+// the same peer. v1 leaves dedup as a UI/UX layer concern.
 
 export async function createThread(formData: FormData): Promise<void> {
   const recipientEmail = String(formData.get("recipientEmail") ?? "")

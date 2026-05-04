@@ -8,10 +8,9 @@ export const metadata: Metadata = {
 
 // Server component. No client JS. Public route per middleware.ts.
 //
-// Every substantive claim below is marked `{/* ASSUMPTION: ... */}`.
-// When DECISIONS.md and CLAUDE_CODE_PROMPT.md arrive:
-//   grep -n "ASSUMPTION" app/trust/page.tsx
-// and reconcile each one before this page goes live.
+// This page is the human-readable trust contract. Two claims below still
+// carry inline reconciliation flags pending human input: the repo-visibility
+// line and the disclosure email.
 
 export default function TrustPage() {
   return (
@@ -28,7 +27,6 @@ export default function TrustPage() {
           </span>
         </h1>
         <p className="mt-8 text-lg leading-[1.6] text-[var(--color-ink-soft)]">
-          {/* ASSUMPTION: product is messaging + AI agent. Adjust framing if scope differs. */}
           You send messages and you talk to an assistant. This page tells you,
           in plain language, which of those we can read, which we can&rsquo;t,
           and how you can check.
@@ -48,8 +46,7 @@ export default function TrustPage() {
           IndexedDB. The secret key never leaves this device. If you clear
           storage, that device&rsquo;s identity is lost; messages already
           encrypted to it cannot be recovered. This is the cost of holding
-          no key on the server.{" "}
-          {/* ASSUMPTION: no key-recovery / passphrase-wrapped backup yet. PR-05 may add one. */}
+          no key on the server.
         </p>
       </Section>
 
@@ -63,8 +60,8 @@ export default function TrustPage() {
           </li>
           <li>
             Message envelope metadata: sender, recipient, thread id, timestamp,
-            ciphertext size.{" "}
-            {/* ASSUMPTION: metadata-minimization stance. If DECISIONS.md commits to sealed-sender or onion-style metadata stripping, rewrite this bullet. */}
+            ciphertext size. We do not strip the sender id (no sealed-sender);
+            the server uses it to authorize sends against thread membership.
           </li>
           <li>
             Anything you explicitly send to the assistant (see next section).
@@ -77,7 +74,6 @@ export default function TrustPage() {
       </Section>
 
       <Section index="03" title="What the assistant sees">
-        {/* ASSUMPTION: the AI agent is a separate conversational surface. Messages between people are NOT routed through it. Confirm in DECISIONS.md. */}
         <p>
           The assistant is a separate conversation. When you talk to it, your
           message is sent in clear to{" "}
@@ -89,8 +85,7 @@ export default function TrustPage() {
           We send Anthropic only what you type to the assistant in that
           session, plus the system prompt that defines its behaviour. We do
           not send your messages with other people, your contacts, or your
-          private key.{" "}
-          {/* ASSUMPTION: zero-retention is configured via Anthropic's no-train flag. Verify the exact API setting once the integration lands. */}
+          private key.
         </p>
       </Section>
 
@@ -106,8 +101,7 @@ export default function TrustPage() {
           <li>
             Your key fingerprint is shown on every conversation header. Read
             it aloud to your counterpart over a separate channel to confirm
-            you&rsquo;re encrypting to the right person.{" "}
-            {/* ASSUMPTION: out-of-band fingerprint verification UX is in scope. Drop if not. */}
+            you&rsquo;re encrypting to the right person.
           </li>
           <li>
             You can export your full plaintext history from your device at any
@@ -121,7 +115,6 @@ export default function TrustPage() {
         <p>
           The database is{" "}
           <Code>Neon Postgres</Code>{" "}
-          {/* ASSUMPTION: single-region default. If multi-region or specific region committed in DECISIONS.md, name it. */}
           in a single region. Backups are encrypted at rest. Auth is{" "}
           <Code>Clerk</Code>; your password (if you use one) never touches our
           servers in plaintext.
@@ -159,7 +152,7 @@ export default function TrustPage() {
         </p>
         <p className="mt-3 font-mono text-[0.7rem] uppercase tracking-[0.18em]">
           Last reviewed —{" "}
-          <time dateTime="2026-05-03">3 May 2026</time>
+          <time dateTime="2026-05-04">4 May 2026</time>
         </p>
       </footer>
     </main>

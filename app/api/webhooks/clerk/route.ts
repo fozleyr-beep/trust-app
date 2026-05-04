@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 // Mirrors Clerk users into Drizzle. Public route (verified by svix signature),
 // not protected by Clerk middleware — see middleware.ts isPublic matcher.
 //
-// ASSUMPTION: we mirror only id + primary email. If DECISIONS.md commits to
-// mirroring more (display name, avatar, locale), extend the schema and this
-// handler together.
+// We mirror only id + primary email. Anything else (display name, avatar,
+// locale) lives in Clerk and is fetched on demand; the privacy stance is
+// "the server holds the minimum it needs to route messages."
 
 type ClerkEvent = {
   type:
