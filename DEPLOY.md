@@ -54,29 +54,35 @@ Credential Manager is installed; otherwise username + Personal Access Token).
 1. Sign up at https://console.neon.tech/signup (free tier covers v1)
 2. **New project:**
    - Project name: `trust-app`
-   - Postgres version: 16 (default)
-   - Region: **AWS US East 2 / N. Virginia (`us-east-2`)** — matches `vercel.json` `regions: ["iad1"]`
+   - Postgres version: 17 (default)
+   - Region: **AWS US East 1 / N. Virginia (`us-east-1`)** — matches `vercel.json` `regions: ["iad1"]` (Vercel's IAD = Washington Dulles = AWS us-east-1)
 3. After creation, the **Connection string** panel shows the URL
 4. Copy the **pooled** connection string. Format:
    ```
-   postgresql://<user>:<pwd>@ep-xxx-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require
+   postgresql://<user>:<pwd>@ep-xxx-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require
    ```
 5. Save as `DATABASE_URL`. Don't commit it.
+
+**Faster alternative — neonctl from the terminal:**
+
+```bash
+npx neonctl@latest auth                                    # opens browser, OAuth
+npx neonctl@latest projects create \
+  --name trust-app --region-id aws-us-east-1 --output json
+# connection_uris[0].connection_uri is your DATABASE_URL
+```
 
 **Push the schema** (one-time, before first deploy):
 
 ```bash
-DATABASE_URL='<your-neon-url>' npm run db:push
+export DATABASE_URL='<your-neon-pooled-url>'
+npm run db:push      # interactive — pick "Yes, I want to execute all statements"
+npm run db:check     # should report "schema in sync with migrations ✓"
 ```
 
-This creates the 5 tables (`users`, `device_keys`, `threads`, `thread_members`,
-`messages`). Verify with:
-
-```bash
-DATABASE_URL='<your-neon-url>' npm run db:check
-```
-
-Should report no schema drift.
+This creates the 5 tables (`users`, `device_keys`, `threads`,
+`thread_members`, `messages`). `drizzle-kit` does not auto-load `.env.local`,
+hence the `export`.
 
 ---
 
