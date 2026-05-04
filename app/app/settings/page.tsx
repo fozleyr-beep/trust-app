@@ -4,6 +4,8 @@ import { SignOutButton } from "@clerk/nextjs";
 import { requireDbUser } from "@/lib/auth/current-user";
 import { MyFingerprint } from "@/app/components/Fingerprint";
 import { ExportButton } from "@/app/components/ExportButton";
+import { RotateKeyButton } from "@/app/components/RotateKeyButton";
+import { DeleteAccountButton } from "@/app/components/DeleteAccountButton";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,14 @@ export default async function SettingsPage() {
         <p className="mt-4">
           <MyFingerprint />
         </p>
+        <div className="mt-6">
+          <RotateKeyButton />
+        </div>
+        <p className="mt-3 text-xs text-[var(--color-ink-muted)]">
+          Rotate if you suspect this device&rsquo;s key has been exposed.
+          Past messages on this device stay readable; new messages encrypt
+          to the new key.
+        </p>
       </section>
 
       <section className="mt-16">
@@ -38,7 +48,7 @@ export default async function SettingsPage() {
           Pulls every message addressed to this device from the server,
           decrypts each one in this browser, and saves a JSON file. The
           server cannot produce this file — only this device can, because
-          only this device has the key.
+          only this device has the keys.
         </p>
         <p className="mt-5">
           <ExportButton />
@@ -57,7 +67,18 @@ export default async function SettingsPage() {
             </button>
           </SignOutButton>
         </p>
-        {/* ASSUMPTION: account deletion is operator-handled via Clerk dashboard for PR-06. If DECISIONS.md requires a self-serve delete, add a route that calls Clerk admin API + revokes device keys + soft-deletes the user row. */}
+      </section>
+
+      <section className="mt-16">
+        <h2 className="font-serif text-[1.2rem] text-red-900">
+          Danger zone
+        </h2>
+        <p className="mt-3 text-sm text-[var(--color-ink-soft)]">
+          Self-serve account deletion. Irreversible.
+        </p>
+        <div className="mt-5">
+          <DeleteAccountButton />
+        </div>
       </section>
 
       <p className="mt-20 text-sm">

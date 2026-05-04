@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getOrCreateDevice } from "@/lib/crypto/keystore";
+import { getAllSecretKeys, getOrCreateDevice } from "@/lib/crypto/keystore";
 import { b64decode, decryptFromSender } from "@/lib/crypto/messaging";
 
 type ServerMsg = {
@@ -29,7 +29,8 @@ export function ExportButton() {
     setBusy(true);
     setError(null);
     try {
-      const device = await getOrCreateDevice();
+      await getOrCreateDevice();
+      const secretKeys = await getAllSecretKeys();
 
       const threadsRes = await fetch("/api/me/threads");
       if (!threadsRes.ok) throw new Error(`threads ${threadsRes.status}`);
@@ -79,15 +80,18 @@ export function ExportButton() {
           const senderPub = senderKeyCache.get(m.senderId);
           let text: string | null = null;
           if (senderPub) {
-            try {
-              text = decryptFromSender({
-                ciphertext: b64decode(m.ciphertext),
-                nonce: b64decode(m.nonce),
-                senderPublicKey: senderPub,
-                recipientSecretKey: device.secretKey,
-              });
-            } catch {
-              text = null;
+            for (const sk of secretKeys) {
+              try {
+                text = decryptFromSender({
+                  ciphertext: b64decode(m.ciphertext),
+                  nonce: b64decode(m.nonce),
+                  senderPublicKey: senderPub,
+                  recipientSecretKey: sk,
+                });
+                break;
+              } catch {
+                // try next generation
+              }
             }
           }
           return {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getOrCreateDevice } from "@/lib/crypto/keystore";
+import { getAllSecretKeys, getOrCreateDevice } from "@/lib/crypto/keystore";
 import { b64decode, decryptFromSender } from "@/lib/crypto/messaging";
 
 type ServerMsg = {
@@ -58,7 +58,11 @@ export function MessageStream({
 
   const tick = useCallback(async () => {
     try {
-      const device = await getOrCreateDevice();
+      // Make sure a device exists locally even if we never need its secret
+      // (sender path); decryption uses every generation we have on hand.
+      await getOrCreateDevice();
+      const secretKeys = await getAllSecretKeys();
+
       const url = `/api/threads/${threadId}/messages?since=${encodeURIComponent(sinceRef.current)}`;
       const r = await fetch(url);
       if (!r.ok) throw new Error(`fetch ${r.status}`);
@@ -72,22 +76,27 @@ export function MessageStream({
       for (const m of messages) {
         const senderPub = senderKeyCache.current.get(m.senderId);
         if (!senderPub) continue;
-        try {
-          const text = decryptFromSender({
-            ciphertext: b64decode(m.ciphertext),
-            nonce: b64decode(m.nonce),
-            senderPublicKey: senderPub,
-            recipientSecretKey: device.secretKey,
-          });
+        let text: string | null = null;
+        for (const sk of secretKeys) {
+          try {
+            text = decryptFromSender({
+              ciphertext: b64decode(m.ciphertext),
+              nonce: b64decode(m.nonce),
+              senderPublicKey: senderPub,
+              recipientSecretKey: sk,
+            });
+            break;
+          } catch {
+            // wrong key generation — try next
+          }
+        }
+        if (text !== null) {
           decoded.push({
             id: m.id,
             senderId: m.senderId,
             text,
             sentAt: m.sentAt,
           });
-        } catch {
-          // sender may have rotated keys — skip; PR-05 retries with all
-          // candidate sender devices.
         }
       }
 
@@ -105,9 +114,11 @@ export function MessageStream({
     const t = setInterval(() => void tick(), 4000);
     const onRefresh = () => void tick();
     window.addEventListener("trust-app:thread-refresh", onRefresh);
+    window.addEventListener("trust-app:device-rotated", onRefresh);
     return () => {
       clearInterval(t);
       window.removeEventListener("trust-app:thread-refresh", onRefresh);
+      window.removeEventListener("trust-app:device-rotated", onRefresh);
     };
   }, [tick]);
 

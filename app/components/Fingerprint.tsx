@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getOrCreateDevice, fingerprint } from "@/lib/crypto/keystore";
 
 export function MyFingerprint({ className }: { className?: string }) {
   const [fp, setFp] = useState<string | null>(null);
-  useEffect(() => {
+
+  const refresh = useCallback(() => {
     void getOrCreateDevice().then((d) => setFp(fingerprint(d.publicKey)));
   }, []);
+
+  useEffect(() => {
+    refresh();
+    window.addEventListener("trust-app:device-rotated", refresh);
+    return () =>
+      window.removeEventListener("trust-app:device-rotated", refresh);
+  }, [refresh]);
+
   return (
     <code
       className={
