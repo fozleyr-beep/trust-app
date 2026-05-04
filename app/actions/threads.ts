@@ -7,6 +7,7 @@ import { and, inArray, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireDbUser } from "@/lib/auth/current-user";
 import { log } from "@/lib/log";
+import { parseRecipientEmails } from "@/lib/messaging/recipients";
 
 // Threads can be 1:1 or group. Recipients are not deduped against existing
 // threads — v1 leaves "is there already a thread with these people?" as a
@@ -16,23 +17,9 @@ const MAX_RECIPIENTS = 9; // up to 10 members total including caller
 
 export async function createThread(formData: FormData): Promise<void> {
   const raw = String(formData.get("recipientEmails") ?? "");
-  const emails = Array.from(
-    new Set(
-      raw
-        .split(/[,\s\n]+/)
-        .map((s) => s.trim().toLowerCase())
-        .filter((s) => s.length > 0 && s.includes("@")),
-    ),
-  );
-
-  if (emails.length === 0) {
-    throw new Error("at least one valid recipient email is required");
-  }
-  if (emails.length > MAX_RECIPIENTS) {
-    throw new Error(
-      `at most ${MAX_RECIPIENTS} recipients per thread; got ${emails.length}`,
-    );
-  }
+  const parsed = parseRecipientEmails({ raw, maxRecipients: MAX_RECIPIENTS });
+  if (!parsed.ok) throw new Error(parsed.error);
+  const emails = parsed.emails;
 
   const me = await requireDbUser();
   const conn = db();
