@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
       "svix-signature": svixSignature,
     }) as ClerkEvent;
   } catch {
+    log.warn("webhook.clerk.invalid_signature", { svixId });
     return NextResponse.json(
       { error: "invalid signature" },
       { status: 401 },
@@ -74,6 +76,7 @@ export async function POST(req: Request) {
 
   const { type, data } = evt;
   const conn = db();
+  log.info("webhook.clerk.received", { svixId, type, clerkId: data?.id });
 
   switch (type) {
     case "user.created":

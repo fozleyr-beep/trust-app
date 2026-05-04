@@ -51,7 +51,7 @@ export default async function SettingsPage() {
           Signed in as <code className="font-mono text-[0.9rem]">{me.email}</code>.
         </p>
         <p className="mt-5">
-          <SignOutButton>
+          <SignOutButton redirectUrl="/">
             <button className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-[var(--color-ink)] border border-[var(--color-ink)] px-5 py-3 hover:bg-[var(--color-ink)] hover:text-[var(--color-paper)]">
               Sign out
             </button>

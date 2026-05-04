@@ -2,6 +2,7 @@ import "server-only";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { log } from "@/lib/log";
 
 // Resolves Clerk userId → mirrored Drizzle user row. If the row is missing
 // (webhook hasn't fired yet, or failed) we backfill from Clerk's currentUser()
@@ -44,5 +45,6 @@ export async function requireDbUser(): Promise<schema.User> {
       set: { email, updatedAt: sql`now()`, deletedAt: null },
     })
     .returning();
+  log.info("auth.backfilled", { clerkId: userId, userId: row.id });
   return row;
 }
