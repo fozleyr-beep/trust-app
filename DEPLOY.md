@@ -72,17 +72,23 @@ npx neonctl@latest projects create \
 # connection_uris[0].connection_uri is your DATABASE_URL
 ```
 
-**Push the schema** (one-time, before first deploy):
+**Apply the schema** (one-time, before first deploy):
 
 ```bash
 export DATABASE_URL='<your-neon-pooled-url>'
-npm run db:push      # interactive — pick "Yes, I want to execute all statements"
-npm run db:check     # should report "schema in sync with migrations ✓"
+npx drizzle-kit migrate    # non-interactive; applies drizzle/*.sql
+npm run db:check           # should report "schema in sync with migrations ✓"
 ```
 
 This creates the 5 tables (`users`, `device_keys`, `threads`,
 `thread_members`, `messages`). `drizzle-kit` does not auto-load `.env.local`,
 hence the `export`.
+
+**Why `migrate` instead of `push`** — `drizzle-kit push` is interactive
+("Yes, I want to execute all statements") and the prompt does not always
+honor piped stdin under non-TTY runners. `migrate` applies the checked-in
+SQL files in `drizzle/` non-interactively, which is what you want for
+both first-prod and CI.
 
 ---
 
