@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /* ─── tokens ──────────────────────────────────────────────────────────
-   ASSUMPTION: tokens here are placeholders. When handoff.yaml's token
-   block is available, replace this @theme map wholesale.
+   Restraint register: ink-on-paper. Mirror of handoff.yaml `tokens:`.
+   Brand-locked palette is a later track; until then this is the visual.
    ──────────────────────────────────────────────────────────────────── */
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,

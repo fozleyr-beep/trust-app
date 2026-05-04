@@ -1,8 +1,7 @@
 import { SignIn } from "@clerk/nextjs";
 
-// ASSUMPTION: Clerk-hosted UI is acceptable for PR-02. If DECISIONS.md
-// commits to a fully custom sign-in (matching the /trust visual register),
-// replace with <ClerkProvider>'s elements API or the lower-level hooks.
+// Clerk-hosted UI. Custom sign-in matching /trust's visual register is a
+// later track if the visual identity is locked.
 
 export default function SignInPage() {
   return (

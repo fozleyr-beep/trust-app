@@ -6,12 +6,9 @@ import { DeviceBootstrap } from "@/app/components/DeviceBootstrap";
 
 export const dynamic = "force-dynamic";
 
-// PR-02 smoke test for the auth wiring. Middleware will already have
-// redirected unauthed visitors to /sign-in; the explicit guard below is a
-// belt + suspenders so a future middleware change cannot silently expose this.
-//
-// ASSUMPTION: /app is the post-auth landing surface. Replace if DECISIONS.md
-// commits to a different route name (e.g. /threads, /home).
+// Post-auth landing. Middleware will already have redirected unauthed
+// visitors to /sign-in; the explicit guard below is a belt + suspenders so
+// a future middleware change cannot silently expose this.
 
 export default async function AppPage() {
   const { userId } = await auth();

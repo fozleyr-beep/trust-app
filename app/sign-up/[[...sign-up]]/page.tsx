@@ -1,7 +1,6 @@
 import { SignUp } from "@clerk/nextjs";
 
-// ASSUMPTION: same as sign-in — Clerk-hosted UI for PR-02. Replace if
-// DECISIONS.md commits to a custom register flow.
+// Clerk-hosted UI; matches /sign-in.
 
 export default function SignUpPage() {
   return (

@@ -21,10 +21,9 @@ function makeNonce(): string {
 
 // Strict CSP. /trust says "no third-party analytics, no marketing pixels,
 // no session-replay" — this header turns that into a runtime guarantee.
-//
-// ASSUMPTION: Clerk's hosted UI loads from *.clerk.accounts.dev (dev) and
-// will load from your production Clerk instance host. If your prod Clerk
-// host differs, add it here.
+// Allowlist covers Clerk's hosted UI (`*.clerk.accounts.dev`) and Cloudflare
+// Turnstile, which Clerk uses for bot challenges. If a prod Clerk host
+// differs, add it here.
 function buildCsp(nonce: string): string {
   const directives: string[] = [
     `default-src 'self'`,

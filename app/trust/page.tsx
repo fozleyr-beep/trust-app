@@ -8,9 +8,8 @@ export const metadata: Metadata = {
 
 // Server component. No client JS. Public route per middleware.ts.
 //
-// This page is the human-readable trust contract. Two claims below still
-// carry inline reconciliation flags pending human input: the repo-visibility
-// line and the disclosure email.
+// This page is the human-readable trust contract. If the code below ever
+// diverges from what this page claims, this page wins until we update it.
 
 export default function TrustPage() {
   return (
@@ -95,8 +94,7 @@ export default function TrustPage() {
             The crypto code is in <Code>lib/crypto/</Code> in our
             open-source repository — under 200 lines, all in one folder. The
             primitives come from <Code>tweetnacl</Code>, an audited library
-            that has shipped without a known cryptographic break since 2014.{" "}
-            {/* ASSUMPTION: repo is or will be public. If it stays private, replace with "auditable on request under NDA". */}
+            that has shipped without a known cryptographic break since 2014.
           </li>
           <li>
             Your key fingerprint is shown on every conversation header. Read
@@ -135,10 +133,9 @@ export default function TrustPage() {
           Found a bug, a leak, a way to make the crypto lie? Email{" "}
           <a
             className="underline decoration-[var(--color-ink-muted)] decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
-            href="mailto:security@example.com"
+            href="mailto:fozleyr@gmail.com"
           >
-            {/* ASSUMPTION: replace with the real address from DECISIONS.md. */}
-            security@example.com
+            fozleyr@gmail.com
           </a>
           . We respond within 72 hours. We will not pursue legal action against
           good-faith research.

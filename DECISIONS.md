@@ -2,13 +2,12 @@
 
 The locked product, design, and stack decisions for `trust-app`.
 
-This file is reverse-engineered from the codebase as it stands at commit
-`0b3094c` (PR-11). Every decision here is "locked" in the sense that the
-code already reflects it; "locked" does not mean "right." Where I had to
-guess (because the original DECISIONS.md / handoff.yaml / CLAUDE_CODE_PROMPT.md
-were never on disk), I marked the line **GUESSED** and listed alternatives
-under [§ Open](#open-decisions). Edit those, then run a single reconciliation
-pass.
+Originally reverse-engineered from the codebase at PR-11; every previously-
+GUESSED item was reconciled in PR-12 (two passes: ratify-as-is for the
+technically-defensible defaults, then human-locked values for the remaining
+placeholder/product calls). Every decision here is "locked" in the sense
+that the code already reflects it; "locked" does not mean "right." If the
+right answer changes, follow the process in [§ Open](#open-decisions).
 
 ---
 
@@ -175,33 +174,18 @@ are configured.
 
 ## Open decisions
 
-These are the things still **GUESSED**, awaiting human input. Each maps to one
-or more `ASSUMPTION:` flags in the source. Run
-`grep -rn ASSUMPTION app/ lib/ middleware.ts` to find the call site.
+None. All 20 originally-GUESSED decisions are locked as of PR-12 (Pass A
+ratified #5–11, #13–16, #20; Pass B locked #1–4, #12, #17–19). The locked
+state is reflected in the prose sections above and in the source —
+`grep -rn ASSUMPTION app/ lib/ middleware.ts` should return zero hits.
 
-Numbers are stable across reconciliation passes — gaps mean the row was locked
-in an earlier pass (PR-12 Pass A locked #5–11, #13–16, #20).
+If a future change reopens any of these (e.g. swapping Clerk-hosted for a
+custom UI, replacing the ink-on-paper palette with a brand-locked one), the
+process is:
 
-| # | Decision | Current guess | Where to look |
-|---|---|---|---|
-| 1 | **Visual tokens** (color, type, type-scale) | Restrained ink-on-paper placeholder | `app/globals.css` |
-| 2 | **Sign-in/sign-up UI** | Clerk-hosted (default) | `app/sign-in/`, `app/sign-up/` |
-| 3 | **`/` route** | redirects to `/trust` | `app/page.tsx` |
-| 4 | **Post-auth landing** | `/app` | `app/app/page.tsx` |
-| 12 | **Agent system prompt** | minimal placeholder | `lib/ai/client.ts` |
-| 17 | **Repo visibility** | public (`/trust` says "open-source") | `/trust` |
-| 18 | **Disclosure email** | `security@example.com` (placeholder) | `/trust` |
-| 19 | **Clerk hosted UI domain in CSP** | `*.clerk.accounts.dev` | `middleware.ts` |
+1. Edit the relevant prose section above to describe the new locked state.
+2. Update `handoff.yaml` if the change is structural (data model, routes, tokens).
+3. Land the code change in its own PR, with a body referencing this file.
 
----
-
-## How to reconcile
-
-When you change any of the above:
-
-1. Edit this file to lock the new decision.
-2. Update `handoff.yaml` if it's structural (data model, routes, tokens).
-3. Find every `ASSUMPTION:` flag for that decision: `grep -rn ASSUMPTION app/ lib/ middleware.ts`.
-4. Edit the call site to match. Remove the `ASSUMPTION:` comment.
-5. Run `npm run typecheck && npm test && npm run build`.
-6. Commit as `feat(reconcile): <decision number> — <one-line summary>`.
+The `# n` numbering used in earlier drafts is retired; cite the prose section
+by name when referring back.
