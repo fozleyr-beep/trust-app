@@ -4,11 +4,11 @@ import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireDbUser } from "@/lib/auth/current-user";
+import { DeviceBootstrap } from "@/app/components/DeviceBootstrap";
+import { Composer } from "@/app/components/Composer";
+import { MessageStream } from "@/app/components/MessageStream";
 
 export const dynamic = "force-dynamic";
-
-// PR-03 scope: just confirm the thread exists and the viewer is a member.
-// Real decrypted message stream lands in PR-04.
 
 export default async function ThreadPage({
   params,
@@ -30,11 +30,7 @@ export default async function ThreadPage({
     )
     .limit(1);
 
-  if (membership.length === 0) {
-    // Either not a member or the thread doesn't exist. Either way, 404 is
-    // the safer disclosure; do not leak existence.
-    notFound();
-  }
+  if (membership.length === 0) notFound();
 
   const [thread] = await conn
     .select()
@@ -44,19 +40,18 @@ export default async function ThreadPage({
 
   return (
     <main className="mx-auto max-w-[68ch] px-6 py-20">
+      <DeviceBootstrap />
       <p className="mb-2 font-mono text-[0.7rem] uppercase tracking-[0.18em] text-[var(--color-ink-muted)]">
         Thread {thread.id.slice(0, 8)}
       </p>
-      <h1 className="font-serif text-[1.8rem] leading-[1.15]">
+      <h1 className="font-serif text-[1.6rem] leading-[1.15] text-[var(--color-ink-soft)]">
         Started {new Date(thread.createdAt).toLocaleString()}
       </h1>
 
-      <p className="mt-10 text-[var(--color-ink-soft)]">
-        The composer and decrypted stream land in PR-04. Until then, this
-        thread exists server-side as metadata only.
-      </p>
+      <MessageStream threadId={thread.id} myUserId={me.id} />
+      <Composer threadId={thread.id} />
 
-      <p className="mt-10 text-sm">
+      <p className="mt-12 text-sm">
         <Link
           className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
           href={"/app/threads" as Route}

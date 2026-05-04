@@ -17,16 +17,16 @@
     "@clerk/nextjs": "^6.10.0",
     "@neondatabase/serverless": "^0.10.4",
     "drizzle-orm": "^0.36.4",
-    "libsodium-wrappers": "^0.7.15",
     "next": "15.5.15",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "svix": "^1.92.2"
+    "svix": "^1.92.2",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@tailwindcss/postcss": "^4.0.0",
-    "@types/libsodium-wrappers": "^0.7.14",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.5",
     "@types/react-dom": "^19.0.3",

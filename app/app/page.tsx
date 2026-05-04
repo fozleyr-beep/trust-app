@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import type { Route } from "next";
 import Link from "next/link";
+import { DeviceBootstrap } from "@/app/components/DeviceBootstrap";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function AppPage() {
 
   return (
     <main className="mx-auto max-w-[68ch] px-6 py-20">
+      <DeviceBootstrap />
       <p className="mb-4 font-mono text-[0.7rem] uppercase tracking-[0.18em] text-[var(--color-ink-muted)]">
         Signed in
       </p>

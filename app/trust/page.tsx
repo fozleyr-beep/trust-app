@@ -36,17 +36,20 @@ export default function TrustPage() {
       </header>
 
       <Section index="01" title="Messages between people are end-to-end encrypted">
-        {/* ASSUMPTION: libsodium crypto_box (X25519 + XSalsa20-Poly1305). Replace if handoff.yaml specifies sealed_box / kx / a different primitive. */}
         <p>
           When you send a message to another person, your device encrypts it
-          with their public key using <Code>libsodium</Code>{" "}
-          (<Code>crypto_box</Code>, X25519 key agreement, XSalsa20-Poly1305).
-          Our servers see only ciphertext. We do not hold a key that can
-          decrypt it.
+          for each of their devices using <Code>crypto_box</Code> (X25519 key
+          agreement, XSalsa20-Poly1305 authenticated encryption). Our servers
+          see only ciphertext, a nonce, and metadata — never the message
+          itself, and never a key that could decrypt it.
         </p>
         <p>
-          Your private key is generated on your device and never leaves it
-          unencrypted. {/* ASSUMPTION: client-side keygen + IndexedDB storage. Confirm key-recovery model from DECISIONS.md (passphrase-wrapped backup vs. nothing vs. social recovery). */}
+          Your device keypair is generated in your browser and stored in
+          IndexedDB. The secret key never leaves this device. If you clear
+          storage, that device&rsquo;s identity is lost; messages already
+          encrypted to it cannot be recovered. This is the cost of holding
+          no key on the server.{" "}
+          {/* ASSUMPTION: no key-recovery / passphrase-wrapped backup yet. PR-05 may add one. */}
         </p>
       </Section>
 
@@ -94,10 +97,11 @@ export default function TrustPage() {
       <Section index="04" title="How to verify any of this">
         <ul className="ml-5 list-disc space-y-2">
           <li>
-            The crypto code is{" "}
-            <Code>lib/crypto/</Code>{" "}
-            in our open-source repository.{" "}
-            {/* ASSUMPTION: repo is or will be public. If it stays private, replace this with "code is auditable on request under NDA". */}
+            The crypto code is in <Code>lib/crypto/</Code> in our
+            open-source repository — under 200 lines, all in one folder. The
+            primitives come from <Code>tweetnacl</Code>, an audited library
+            that has shipped without a known cryptographic break since 2014.{" "}
+            {/* ASSUMPTION: repo is or will be public. If it stays private, replace with "auditable on request under NDA". */}
           </li>
           <li>
             Your key fingerprint is shown on every conversation header. Read
