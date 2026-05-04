@@ -1,34 +1,41 @@
 import { anthropic, MODEL, SYSTEM_PROMPT } from "@/lib/ai/client";
 import { requireDbUser } from "@/lib/auth/current-user";
+import { parseBody } from "@/lib/api/parse";
+import { AgentRequest } from "@/lib/api/schemas";
+import { rateLimit } from "@/lib/api/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type AgentMessage = { role: "user" | "assistant"; content: string };
-type Body = { messages: AgentMessage[] };
-
-// POST /api/agent — streams Anthropic SSE-style as plain text deltas.
-// Wire format: each line is a UTF-8 chunk of assistant text, no framing.
-// Caller appends the chunks as they arrive.
+// POST /api/agent — streams Anthropic responses as plain text-delta chunks.
+// Caller appends as they arrive. Rate-limited per user (Anthropic costs $).
 
 export async function POST(req: Request) {
-  await requireDbUser();
-  const body = (await req.json()) as Body;
-  const messages = (body?.messages ?? []).filter(
-    (m) =>
-      (m.role === "user" || m.role === "assistant") &&
-      typeof m.content === "string" &&
-      m.content.length > 0,
-  );
-  if (messages.length === 0) {
-    return new Response("messages required", { status: 400 });
+  const me = await requireDbUser();
+
+  // 6 requests per minute per user, burst of 6.
+  // ASSUMPTION: tune from DECISIONS.md if a budget is specified.
+  const gate = rateLimit(`agent:${me.id}`, {
+    capacity: 6,
+    refillPerSecond: 0.1,
+  });
+  if (!gate.ok) {
+    return new Response("rate limit", {
+      status: 429,
+      headers: {
+        "retry-after": String(Math.ceil(gate.retryAfterMs / 1000)),
+      },
+    });
   }
+
+  const parsed = await parseBody(req, AgentRequest);
+  if (parsed.error) return parsed.error;
 
   const stream = await anthropic().messages.stream({
     model: MODEL,
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
-    messages,
+    messages: parsed.data.messages,
   });
 
   const encoder = new TextEncoder();

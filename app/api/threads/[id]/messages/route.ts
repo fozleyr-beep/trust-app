@@ -2,18 +2,13 @@ import { NextResponse } from "next/server";
 import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireDbUser } from "@/lib/auth/current-user";
+import { parseBody } from "@/lib/api/parse";
+import { SendMessage } from "@/lib/api/schemas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type SendBody = {
-  // One entry per recipient device — composer encrypted once per device.
-  fanout: Array<{
-    recipientDeviceKeyId: string;
-    ciphertext: string; // base64
-    nonce: string; // base64
-  }>;
-};
+const MESSAGES_GET_LIMIT = 200;
 
 function fromB64(s: string): Buffer {
   return Buffer.from(s, "base64");
@@ -41,22 +36,20 @@ export async function POST(
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  const body = (await req.json()) as SendBody;
-  if (!Array.isArray(body?.fanout) || body.fanout.length === 0) {
-    return NextResponse.json(
-      { error: "fanout must be a non-empty array" },
-      { status: 400 },
-    );
-  }
+  const parsed = await parseBody(req, SendMessage);
+  if (parsed.error) return parsed.error;
 
-  const rows = body.fanout.map((f) => ({
-    threadId,
-    senderId: me.id,
-    recipientDeviceKeyId: f.recipientDeviceKeyId,
-    ciphertext: fromB64(f.ciphertext),
-    nonce: fromB64(f.nonce),
-    cipherSize: fromB64(f.ciphertext).byteLength,
-  }));
+  const rows = parsed.data.fanout.map((f) => {
+    const cipher = fromB64(f.ciphertext);
+    return {
+      threadId,
+      senderId: me.id,
+      recipientDeviceKeyId: f.recipientDeviceKeyId,
+      ciphertext: cipher,
+      nonce: fromB64(f.nonce),
+      cipherSize: cipher.byteLength,
+    };
+  });
 
   await conn.insert(schema.messages).values(rows);
   return NextResponse.json({ ok: true, written: rows.length });
@@ -102,7 +95,8 @@ export async function GET(
         gt(schema.messages.sentAt, since),
       ),
     )
-    .orderBy(asc(schema.messages.sentAt));
+    .orderBy(asc(schema.messages.sentAt))
+    .limit(MESSAGES_GET_LIMIT);
 
   return NextResponse.json({
     messages: rows.map((r) => ({

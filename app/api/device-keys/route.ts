@@ -2,34 +2,25 @@ import { NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireDbUser } from "@/lib/auth/current-user";
+import { parseBody } from "@/lib/api/parse";
+import { RegisterDevice } from "@/lib/api/schemas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // POST: register or refresh this device's pubkey for the signed-in user.
-// Body: { deviceId: string, publicKey: base64 }
 //
 // ASSUMPTION: re-registering the same deviceId rotates the public key and
 // revokes the prior row. If DECISIONS.md says rotation must be a separate
 // endpoint with explicit user confirmation, split this.
 
-type RegisterBody = { deviceId: string; publicKey: string };
-
-function fromBase64(s: string): Buffer {
-  return Buffer.from(s, "base64");
-}
-
 export async function POST(req: Request) {
   const me = await requireDbUser();
-  const body = (await req.json()) as RegisterBody;
-  if (!body?.deviceId || !body?.publicKey) {
-    return NextResponse.json(
-      { error: "deviceId and publicKey are required" },
-      { status: 400 },
-    );
-  }
+  const parsed = await parseBody(req, RegisterDevice);
+  if (parsed.error) return parsed.error;
+  const body = parsed.data;
   const conn = db();
-  const pub = fromBase64(body.publicKey);
+  const pub = Buffer.from(body.publicKey, "base64");
 
   // Revoke any prior unrevoked row for this user+device
   await conn
