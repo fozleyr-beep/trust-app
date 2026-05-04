@@ -1,61 +1,100 @@
 # trust-app
 
-PR-01 scaffold. Stack is locked:
+A trust-stack messaging product: end-to-end encrypted threads with people +
+a separate Claude assistant that cannot read those messages, with the
+contract written down on `/trust` and enforced by tests and a strict CSP.
 
-- Next.js 15 (App Router)
+Stack:
+
+- Next.js 15 (App Router) + TypeScript strict
 - Tailwind v4 (CSS-first config)
 - Drizzle ORM on Postgres / Neon
-- Clerk auth
+- Clerk auth (+ webhook → Drizzle user mirror)
 - Claude Sonnet 4.5 (`claude-sonnet-4-5`)
-- libsodium for message E2E
+- `tweetnacl` for `crypto_box` (X25519 + XSalsa20-Poly1305) — see
+  [DECISIONS.md § Crypto primitive](./DECISIONS.md) for why this isn't
+  libsodium
+
+Source of truth:
+
+- [`DECISIONS.md`](./DECISIONS.md) — locked product/design/stack decisions
+- [`handoff.yaml`](./handoff.yaml) — tokens, agents, data model, flows, routes
+- [`CLAUDE_CODE_PROMPT.md`](./CLAUDE_CODE_PROMPT.md) — PR plan + bootstrap
 
 ## Setup
 
 ```bash
-cp .env.example .env.local   # fill in keys
+cp .env.example .env.local
+# fill: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY,
+#       CLERK_WEBHOOK_SECRET, DATABASE_URL, ANTHROPIC_API_KEY
 npm install
-npm run dev
+npm run db:push     # one-time — creates the 5 tables in Neon
+npm run doctor      # preflight: env + connectivity probes
+npm test            # 11/11
+npm run dev         # http://localhost:3000
 ```
-
-Open http://localhost:3000/trust
-
-## Status
-
-This is the PR-01 scaffold:
-
-- `/trust` page is the only page rendered
-- Drizzle / Clerk / Anthropic / libsodium are wired as **stubs** so the app
-  compiles and routing works — full integration lands in PR-02 onward
-- Every content claim on `/trust` is flagged with `ASSUMPTION` in the source.
-  When `DECISIONS.md` and `CLAUDE_CODE_PROMPT.md` arrive, grep the codebase
-  for `ASSUMPTION` and reconcile each one before merge.
 
 ## Deploy (Vercel)
 
-1. Push this repo to GitHub.
-2. Import in Vercel; framework auto-detected (Next.js).
-3. Set the env vars from `.env.example` in the Vercel project settings.
+1. Push to GitHub.
+2. Import in Vercel; Next.js auto-detected.
+3. Set env vars from `.env.example` in the Vercel project settings.
 4. Provision a Neon database and paste `DATABASE_URL`.
-5. After first deploy: run the migrations against Neon — locally,
-   `DATABASE_URL=… npm run db:push`. (PR-07 will add a `release` script
-   that runs migrations on Vercel build.)
+5. Run migrations: `DATABASE_URL=… npm run db:push`.
 6. In Clerk dashboard → Webhooks, add an endpoint pointing to
-   `https://<your-domain>/api/webhooks/clerk`. Copy the signing secret
-   into `CLERK_WEBHOOK_SECRET`.
+   `https://<your-domain>/api/webhooks/clerk`. Copy the signing secret into
+   `CLERK_WEBHOOK_SECRET`.
 
 ## Layout
 
 ```
 app/
-  layout.tsx              # root, font setup, no auth
-  page.tsx                # / → 307 to /trust for now
-  trust/page.tsx          # the PR-01 deliverable
-  globals.css             # Tailwind v4 entrypoint + tokens
+  layout.tsx                 # root, conditional ClerkProvider
+  page.tsx                   # / → /trust
+  trust/page.tsx             # the human-readable trust contract
+  sign-in/[[...sign-in]]/    # Clerk-hosted UI
+  sign-up/[[...sign-up]]/
+  app/                       # post-auth surfaces
+    page.tsx                 # dashboard
+    threads/                 # E2E messaging
+    agent/                   # Claude assistant (separate, not E2E)
+    settings/                # fingerprint, rotate, export, delete
+  api/
+    agent/                   # streaming Anthropic, rate-limited
+    device-keys/             # POST register / rotate
+    sender-keys/             # POST fetch peer pubkeys
+    threads/[id]/messages/   # POST fanout, GET decrypt-list
+    threads/[id]/recipient-keys/
+    me/threads/              # GET own thread metadata
+    me/delete/               # POST self-delete
+    webhooks/clerk/          # svix-verified user mirror
+    health/
+  components/                # client components only
 lib/
-  ai/client.ts            # Anthropic SDK init, model = claude-sonnet-4-5
-  crypto/index.ts         # libsodium init wrapper
-  db/index.ts             # Drizzle + Neon HTTP client
-  db/schema.ts            # placeholder tables — replace per handoff.yaml
-middleware.ts             # Clerk; /trust and / are public
-drizzle.config.ts
+  ai/client.ts               # Anthropic SDK + system prompt
+  api/{schemas,parse,rate-limit}.ts
+  auth/current-user.ts       # Clerk → Drizzle resolver + lazy backfill
+  crypto/{index,keystore,messaging}.ts
+  db/{index,schema,threads}.ts
+  log.ts                     # JSON logger
+middleware.ts                # Clerk auth + strict nonce-based CSP
+tests/
+  agent-isolation.test.ts    # asserts agent never touches messages
+drizzle/                     # migrations
+scripts/
+  doctor.ts                  # npm run doctor
+.github/workflows/ci.yml     # typecheck + test + build
 ```
+
+## What `/trust` says, and how it's enforced
+
+| Promise on `/trust` | How it's enforced |
+|---|---|
+| Messages between people are end-to-end encrypted | `lib/crypto/messaging.test.ts` — 5 round-trip tests |
+| The assistant cannot read those messages | `tests/agent-isolation.test.ts` — 5 forbidden-pattern tests |
+| No third-party analytics, pixels, replay | Strict CSP with nonce + `'strict-dynamic'` (`middleware.ts`) |
+| You can verify with a fingerprint | `/app/settings` + thread page header |
+| You can rotate if compromised | `/app/settings` → Rotate, preserves past-message access |
+| You can export your full history | `/app/settings` → Export, runs entirely in the browser |
+| You can delete your account | `/app/settings` → Danger zone (typed confirmation) |
+| Server holds metadata, not plaintext | `lib/db/schema.ts` — `messages.ciphertext` is bytea only |

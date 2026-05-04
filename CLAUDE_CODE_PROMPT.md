@@ -59,12 +59,12 @@ Each PR landed with `npm run typecheck && npm test && npm run build` clean.
 | 09 | `9f24a50` | Strict CSP + structured JSON logging + sign-out redirect |
 | 10 | `9984678` | Key rotation (multi-generation) + account self-delete |
 | 11 | `0b3094c` | `npm run doctor` preflight |
+| 12 |  *(this PR)*  | Reconciliation. All 20 originally-GUESSED decisions in `DECISIONS.md` are now locked; `grep -rn ASSUMPTION app/ lib/ middleware.ts` returns zero hits. Pass A ratified the structural decisions (#5–11, #13–16, #20); Pass B locked the visual / copy / config decisions (#1–4, #12, #17–19). |
 
 ### Next
 
 | PR | Scope | Pre-condition |
 |---|---|---|
-| 12 | **Reconciliation pass.** Walk every `ASSUMPTION:` flag, edit each call site to match the locked decision in `DECISIONS.md`, remove the flag. | `DECISIONS.md` has been edited by the human to express the *actual* locked decisions, not my guesses. |
 | 13 | Live deploy: Vercel + Neon + Clerk webhook URL configuration. | Real accounts, ~30 min. |
 
 ### Possible follow-ups (none ordered, none blocked on each other)
