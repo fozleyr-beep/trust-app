@@ -7,6 +7,7 @@ import { requireDbUser } from "@/lib/auth/current-user";
 import { DeviceBootstrap } from "@/app/components/DeviceBootstrap";
 import { Composer } from "@/app/components/Composer";
 import { MessageStream } from "@/app/components/MessageStream";
+import { PeerFingerprints } from "@/app/components/PeerFingerprints";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,10 @@ export default async function ThreadPage({
       <h1 className="font-serif text-[1.6rem] leading-[1.15] text-[var(--color-ink-soft)]">
         Started {new Date(thread.createdAt).toLocaleString()}
       </h1>
+
+      <div className="mt-6">
+        <PeerFingerprints threadId={thread.id} myUserId={me.id} />
+      </div>
 
       <MessageStream threadId={thread.id} myUserId={me.id} />
       <Composer threadId={thread.id} />

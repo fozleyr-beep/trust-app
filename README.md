@@ -30,6 +30,19 @@ This is the PR-01 scaffold:
   When `DECISIONS.md` and `CLAUDE_CODE_PROMPT.md` arrive, grep the codebase
   for `ASSUMPTION` and reconcile each one before merge.
 
+## Deploy (Vercel)
+
+1. Push this repo to GitHub.
+2. Import in Vercel; framework auto-detected (Next.js).
+3. Set the env vars from `.env.example` in the Vercel project settings.
+4. Provision a Neon database and paste `DATABASE_URL`.
+5. After first deploy: run the migrations against Neon — locally,
+   `DATABASE_URL=… npm run db:push`. (PR-07 will add a `release` script
+   that runs migrations on Vercel build.)
+6. In Clerk dashboard → Webhooks, add an endpoint pointing to
+   `https://<your-domain>/api/webhooks/clerk`. Copy the signing secret
+   into `CLERK_WEBHOOK_SECRET`.
+
 ## Layout
 
 ```

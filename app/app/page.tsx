@@ -50,6 +50,14 @@ export default async function AppPage() {
         <li>
           <Link
             className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
+            href={"/app/settings" as Route}
+          >
+            Settings (fingerprint, export) →
+          </Link>
+        </li>
+        <li>
+          <Link
+            className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
             href={"/trust" as Route}
           >
             Trust contract
