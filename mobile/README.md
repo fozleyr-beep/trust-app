@@ -31,9 +31,9 @@ profile creates an Android App Bundle for Play Console.
 - Move `extra.apiBaseUrl` to `https://sakinah.family` after the main app is
   attached to that Vercel project.
 - Add `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` for device builds. The root app is
-  already wrapped with `@clerk/expo` and `@clerk/expo/token-cache` for secure
-  native session persistence.
-- Replace the hosted sign-in fallback with native email sign-in/up screens.
+  wrapped with `@clerk/expo` and `@clerk/expo/token-cache` for secure native
+  session persistence, with native email/password sign-in and verified sign-up
+  screens in the Account tab.
 - Port device-key generation and encrypted messaging storage to native secure
   storage before opening real rooms.
 - Decide Android payments policy before exposing paid service unlocks in-app.

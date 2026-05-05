@@ -40,7 +40,7 @@ for Play Console, and leaves iOS open when the Apple Developer account is ready.
 
 ## Next slices
 
-1. Native email sign-in/up screens on top of the mounted Clerk provider.
+1. Android device QA for native Clerk email sign-in/up.
 2. Native key storage and encrypted messaging port.
 3. Android payment policy decision and implementation.
 4. Play Store assets and internal testing release.

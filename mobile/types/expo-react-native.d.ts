@@ -32,7 +32,39 @@ declare module "@clerk/expo" {
       primaryEmailAddress?: {
         emailAddress?: string | null;
       } | null;
-    } | null;
+      } | null;
+  };
+
+  export function useSignIn(): {
+    signIn: {
+      password(input: {
+        emailAddress: string;
+        password: string;
+      }): Promise<{
+        createdSessionId?: string | null;
+        error?: { message?: string | null } | null;
+      }>;
+    };
+    setActive(input: { session: string }): Promise<void>;
+  };
+
+  export function useSignUp(): {
+    signUp: {
+      password(input: {
+        emailAddress: string;
+        password: string;
+      }): Promise<{
+        error?: { message?: string | null } | null;
+      }>;
+      verifications: {
+        sendEmailCode(): Promise<void>;
+        verifyEmailCode(input: { code: string }): Promise<{
+          createdSessionId?: string | null;
+          error?: { message?: string | null } | null;
+        }>;
+      };
+    };
+    setActive(input: { session: string }): Promise<void>;
   };
 }
 
@@ -60,10 +92,21 @@ declare module "react-native" {
   }>;
   export const View: ComponentType<{ children?: ReactNode; style?: unknown }>;
   export const Text: ComponentType<{ children?: ReactNode; style?: unknown }>;
+  export const TextInput: ComponentType<{
+    autoCapitalize?: string;
+    keyboardType?: string;
+    onChangeText?: (text: string) => void;
+    placeholder?: string;
+    placeholderTextColor?: string;
+    secureTextEntry?: boolean;
+    style?: unknown;
+    value?: string;
+  }>;
   export const Pressable: ComponentType<{
     accessibilityRole?: string;
     accessibilityState?: Record<string, unknown>;
     children?: ReactNode;
+    disabled?: boolean;
     onPress?: () => void;
     style?: unknown;
   }>;

@@ -9,9 +9,16 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
-import { ClerkProvider, useAuth, useUser } from "@clerk/expo";
+import {
+  ClerkProvider,
+  useAuth,
+  useSignIn,
+  useSignUp,
+  useUser,
+} from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import Constants from "expo-constants";
 import {
@@ -40,6 +47,7 @@ const stateCopy: Record<AgentStageState, string> = {
 };
 
 type TabName = "path" | "agents" | "account" | "store";
+type AuthMode = "sign-in" | "sign-up";
 
 export default function App() {
   const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -199,6 +207,7 @@ function AccountTab({
 function AuthenticatedAccountTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const { isLoaded, isSignedIn, signOut } = useAuth();
   const { user } = useUser();
+  const [authMode, setAuthMode] = useState<AuthMode>("sign-in");
 
   if (!isLoaded) {
     return (
@@ -217,14 +226,19 @@ function AuthenticatedAccountTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   if (!isSignedIn) {
     return (
       <View style={styles.stack}>
-        <Card>
-          <Text style={styles.cardTitle}>Native auth ready</Text>
-          <Text style={styles.cardBody}>
-            Clerk is mounted with secure token persistence. The next slice
-            replaces the hosted route with native email sign-in and sign-up
-            screens.
-          </Text>
-        </Card>
+        <View style={styles.authSwitch}>
+          <Tab
+            label="Sign in"
+            active={authMode === "sign-in"}
+            onPress={() => setAuthMode("sign-in")}
+          />
+          <Tab
+            label="Sign up"
+            active={authMode === "sign-up"}
+            onPress={() => setAuthMode("sign-up")}
+          />
+        </View>
+        {authMode === "sign-in" ? <SignInForm /> : <SignUpForm />}
         <AccountLinks apiBaseUrl={apiBaseUrl} />
       </View>
     );
@@ -245,6 +259,230 @@ function AuthenticatedAccountTab({ apiBaseUrl }: { apiBaseUrl: string }) {
       </Pressable>
       <AccountLinks apiBaseUrl={apiBaseUrl} hideSignIn />
     </View>
+  );
+}
+
+function SignInForm() {
+  const { signIn, setActive } = useSignIn();
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState("Use the same email you use on web.");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function onSubmit() {
+    if (!emailAddress.trim() || !password) {
+      setStatus("Email and password are required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatus("Checking credentials...");
+
+    try {
+      const result = await signIn.password({
+        emailAddress: emailAddress.trim(),
+        password,
+      });
+
+      if (result.error) {
+        setStatus(result.error.message ?? "Sign-in failed.");
+        return;
+      }
+
+      if (result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        setStatus("Signed in.");
+        return;
+      }
+
+      setStatus("Additional verification is required.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Sign-in failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>Sign in</Text>
+      <Text style={styles.cardBody}>{status}</Text>
+      <AuthInput
+        autoCapitalize="none"
+        keyboardType="email-address"
+        onChangeText={setEmailAddress}
+        placeholder="Email"
+        value={emailAddress}
+      />
+      <AuthInput
+        onChangeText={setPassword}
+        placeholder="Password"
+        secureTextEntry
+        value={password}
+      />
+      <Pressable
+        disabled={isSubmitting}
+        style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
+        onPress={() => void onSubmit()}
+      >
+        <Text style={styles.primaryButtonText}>
+          {isSubmitting ? "Signing in..." : "Sign in"}
+        </Text>
+      </Pressable>
+    </Card>
+  );
+}
+
+function SignUpForm() {
+  const { signUp, setActive } = useSignUp();
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [status, setStatus] = useState("Create the private Sakinah account.");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function onSubmit() {
+    if (!emailAddress.trim() || !password) {
+      setStatus("Email and password are required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatus("Creating account...");
+
+    try {
+      const result = await signUp.password({
+        emailAddress: emailAddress.trim(),
+        password,
+      });
+
+      if (result.error) {
+        setStatus(result.error.message ?? "Sign-up failed.");
+        return;
+      }
+
+      await signUp.verifications.sendEmailCode();
+      setPendingVerification(true);
+      setStatus("Enter the verification code sent to your email.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Sign-up failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function onVerify() {
+    if (!code.trim()) {
+      setStatus("Verification code is required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatus("Verifying email...");
+
+    try {
+      const result = await signUp.verifications.verifyEmailCode({
+        code: code.trim(),
+      });
+
+      if (result.error) {
+        setStatus(result.error.message ?? "Verification failed.");
+        return;
+      }
+
+      if (result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        setStatus("Account verified.");
+        return;
+      }
+
+      setStatus("Verification complete. Please sign in.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Verification failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>Sign up</Text>
+      <Text style={styles.cardBody}>{status}</Text>
+      {!pendingVerification ? (
+        <>
+          <AuthInput
+            autoCapitalize="none"
+            keyboardType="email-address"
+            onChangeText={setEmailAddress}
+            placeholder="Email"
+            value={emailAddress}
+          />
+          <AuthInput
+            onChangeText={setPassword}
+            placeholder="Password"
+            secureTextEntry
+            value={password}
+          />
+          <Pressable
+            disabled={isSubmitting}
+            style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
+            onPress={() => void onSubmit()}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isSubmitting ? "Creating..." : "Create account"}
+            </Text>
+          </Pressable>
+        </>
+      ) : (
+        <>
+          <AuthInput
+            keyboardType="number-pad"
+            onChangeText={setCode}
+            placeholder="Email code"
+            value={code}
+          />
+          <Pressable
+            disabled={isSubmitting}
+            style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
+            onPress={() => void onVerify()}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isSubmitting ? "Verifying..." : "Verify email"}
+            </Text>
+          </Pressable>
+        </>
+      )}
+    </Card>
+  );
+}
+
+function AuthInput({
+  autoCapitalize = "sentences",
+  keyboardType = "default",
+  onChangeText,
+  placeholder,
+  secureTextEntry = false,
+  value,
+}: {
+  autoCapitalize?: "none" | "sentences";
+  keyboardType?: "default" | "email-address" | "number-pad";
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  secureTextEntry?: boolean;
+  value: string;
+}) {
+  return (
+    <TextInput
+      autoCapitalize={autoCapitalize}
+      keyboardType={keyboardType}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colors.inkFaint}
+      secureTextEntry={secureTextEntry}
+      style={styles.input}
+      value={value}
+    />
   );
 }
 
@@ -401,6 +639,13 @@ const styles = StyleSheet.create({
     gap: 6,
     padding: 6,
   },
+  authSwitch: {
+    backgroundColor: colors.paperSoft,
+    borderRadius: 14,
+    flexDirection: "row",
+    gap: 6,
+    padding: 6,
+  },
   tab: {
     alignItems: "center",
     borderRadius: 10,
@@ -469,6 +714,17 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     marginTop: 12,
   },
+  input: {
+    backgroundColor: colors.paper,
+    borderColor: colors.rule,
+    borderRadius: 10,
+    borderWidth: 1,
+    color: colors.ink,
+    fontSize: 15,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
   arabic: {
     color: colors.inkMuted,
     fontFamily: Platform.select({ ios: "Georgia", default: "serif" }),
@@ -488,7 +744,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.ink,
     borderRadius: 10,
+    marginTop: 2,
     paddingVertical: 15,
+  },
+  buttonDisabled: {
+    opacity: 0.62,
   },
   primaryButtonText: {
     color: colors.paper,

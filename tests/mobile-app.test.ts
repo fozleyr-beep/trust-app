@@ -57,4 +57,15 @@ describe("mobile app foundation", () => {
     expect(app).toContain("@clerk/expo/token-cache");
     expect(app).toContain("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
   });
+
+  it("has native email/password sign-in and verified sign-up screens", () => {
+    const app = read("mobile/App.tsx");
+    expect(app).toContain("useSignIn");
+    expect(app).toContain("useSignUp");
+    expect(app).toContain("signIn.password");
+    expect(app).toContain("signUp.password");
+    expect(app).toContain("sendEmailCode");
+    expect(app).toContain("verifyEmailCode");
+    expect(app).toContain("TextInput");
+  });
 });
