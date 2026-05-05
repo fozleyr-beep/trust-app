@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { cookies } from "next/headers";
+import { defaultLocale, dirForLocale, isLocale } from "@/lib/i18n/routing";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,8 +26,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const localeCookie = cookieStore.get("NEXT_LOCALE")?.value;
+  const locale = isLocale(localeCookie) ? localeCookie : defaultLocale;
   const tree = (
-    <html lang="en" dir="ltr">
+    <html lang={locale} dir={dirForLocale(locale)}>
       <body>{children}</body>
     </html>
   );

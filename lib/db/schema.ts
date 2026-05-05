@@ -1,9 +1,13 @@
 import {
   customType,
+  date,
   index,
   integer,
+  jsonb,
+  numeric,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -21,11 +25,19 @@ const bytea = customType<{ data: Buffer; default: false }>({
   },
 });
 
+type JsonRecord = Record<string, unknown>;
+
 // ─── users (PR-02) ─────────────────────────────────────────────────────
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   clerkId: text("clerk_id").notNull().unique(),
   email: text("email").notNull(),
+  role: text("role").notNull().default("seeker"),
+  layerPublic: jsonb("layer_public").$type<JsonRecord>(),
+  layerGated: jsonb("layer_gated").$type<JsonRecord>(),
+  layerFamily: jsonb("layer_family").$type<JsonRecord>(),
+  verification: jsonb("verification").$type<JsonRecord>(),
+  preferences: jsonb("preferences").$type<JsonRecord>(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -68,6 +80,9 @@ export const threads = pgTable("threads", {
   createdBy: uuid("created_by")
     .notNull()
     .references(() => users.id),
+  handoffAt: timestamp("handoff_at", { withTimezone: true }),
+  mediator: text("mediator").notNull().default("adil"),
+  sabrStatus: text("sabr_status").notNull().default("normal"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -334,6 +349,226 @@ export const agentActions = pgTable(
   }),
 );
 
+// ─── family_link ──────────────────────────────────────────────────────
+// Wali/family observation is explicit, accepted, and read-only by default.
+export const familyLinks = pgTable(
+  "family_link",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    inviterId: uuid("inviter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    observerId: uuid("observer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("read_only"),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    steppedBackAt: timestamp("stepped_back_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    inviterObserverUnique: uniqueIndex("family_link_inviter_observer_idx").on(
+      t.inviterId,
+      t.observerId,
+    ),
+    observerIdx: index("family_link_observer_idx").on(t.observerId),
+  }),
+);
+
+// ─── interest ─────────────────────────────────────────────────────────
+// Lightweight mutual-interest ledger. Photos remain gated until mutual state.
+export const interests = pgTable(
+  "interest",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fromId: uuid("from_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    toId: uuid("to_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sentAt: timestamp("sent_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    passedAt: timestamp("passed_at", { withTimezone: true }),
+  },
+  (t) => ({
+    fromIdx: index("interest_from_idx").on(t.fromId, t.sentAt),
+    toIdx: index("interest_to_idx").on(t.toId, t.sentAt),
+  }),
+);
+
+// ─── salaam_quota ─────────────────────────────────────────────────────
+export const salaamQuota = pgTable(
+  "salaam_quota",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekStart: date("week_start").notNull(),
+    sentCount: smallint("sent_count").notNull().default(0),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.weekStart] }),
+  }),
+);
+
+// ─── audit_event ──────────────────────────────────────────────────────
+// Trust chips should be explainable from agent/action/time audit state.
+export const auditEvents = pgTable(
+  "audit_event",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agent: text("agent").notNull(),
+    action: text("action").notNull(),
+    tag: text("tag").notNull(),
+    state: text("state").notNull().default("done"),
+    promptHash: text("prompt_hash"),
+    responseHash: text("response_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    userCreatedIdx: index("audit_event_user_created_idx").on(
+      t.userId,
+      t.createdAt,
+    ),
+    agentTagIdx: index("audit_event_agent_tag_idx").on(t.agent, t.tag),
+  }),
+);
+
+// ─── consent_grant ────────────────────────────────────────────────────
+export const consentGrants = pgTable(
+  "consent_grant",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => threads.id, { onDelete: "cascade" }),
+    seekerId: uuid("seeker_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => ({
+    threadSeekerKindIdx: index("consent_grant_thread_seeker_kind_idx").on(
+      t.threadId,
+      t.seekerId,
+      t.kind,
+    ),
+  }),
+);
+
+// ─── wali_digest / wali_note ──────────────────────────────────────────
+export const waliDigests = pgTable(
+  "wali_digest",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => threads.id, { onDelete: "cascade" }),
+    observerId: uuid("observer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    writtenAt: timestamp("written_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    body: text("body").notNull(),
+  },
+  (t) => ({
+    observerThreadIdx: index("wali_digest_observer_thread_idx").on(
+      t.observerId,
+      t.threadId,
+    ),
+  }),
+);
+
+export const waliNotes = pgTable(
+  "wali_note",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    familyLinkId: uuid("family_link_id")
+      .notNull()
+      .references(() => familyLinks.id, { onDelete: "cascade" }),
+    fromId: uuid("from_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    toId: uuid("to_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    ciphertext: bytea("ciphertext").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    familySentIdx: index("wali_note_family_sent_idx").on(
+      t.familyLinkId,
+      t.sentAt,
+    ),
+  }),
+);
+
+// ─── sabr_event / donation ────────────────────────────────────────────
+// Sabr stores classifier metadata and decisions, never room plaintext.
+export const sabrEvents = pgTable(
+  "sabr_event",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => threads.id, { onDelete: "cascade" }),
+    classifier: text("classifier").notNull(),
+    confidence: numeric("confidence", { precision: 3, scale: 2 }),
+    action: text("action").notNull(),
+    reviewedBy: uuid("reviewed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    decision: text("decision"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    threadCreatedIdx: index("sabr_event_thread_created_idx").on(
+      t.threadId,
+      t.createdAt,
+    ),
+    classifierIdx: index("sabr_event_classifier_idx").on(t.classifier),
+  }),
+);
+
+export const donations = pgTable(
+  "donation",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    amountCents: integer("amount_cents").notNull(),
+    occasion: text("occasion").notNull().default("nikah_blessing"),
+    sentAt: timestamp("sent_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    userSentIdx: index("donation_user_sent_idx").on(t.userId, t.sentAt),
+  }),
+);
+
 // ─── relations ─────────────────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
   devices: many(deviceKeys),
@@ -343,6 +578,22 @@ export const usersRelations = relations(users, ({ many }) => ({
   agentActions: many(agentActions),
   serviceProfiles: many(serviceProfiles),
   matchSuggestions: many(matchSuggestions),
+  familyLinksInvited: many(familyLinks, {
+    relationName: "family_link_inviter",
+  }),
+  familyLinksObserved: many(familyLinks, {
+    relationName: "family_link_observer",
+  }),
+  interestsSent: many(interests, { relationName: "interest_from" }),
+  interestsReceived: many(interests, { relationName: "interest_to" }),
+  salaamQuota: many(salaamQuota),
+  auditEvents: many(auditEvents),
+  consentGrants: many(consentGrants),
+  waliDigests: many(waliDigests),
+  waliNotesSent: many(waliNotes, { relationName: "wali_note_from" }),
+  waliNotesReceived: many(waliNotes, { relationName: "wali_note_to" }),
+  sabrReviews: many(sabrEvents, { relationName: "sabr_event_reviewer" }),
+  donations: many(donations),
 }));
 
 export const threadsRelations = relations(threads, ({ one, many }) => ({
@@ -352,6 +603,9 @@ export const threadsRelations = relations(threads, ({ one, many }) => ({
   }),
   members: many(threadMembers),
   messages: many(messages),
+  consentGrants: many(consentGrants),
+  waliDigests: many(waliDigests),
+  sabrEvents: many(sabrEvents),
 }));
 
 export const threadMembersRelations = relations(threadMembers, ({ one }) => ({
@@ -450,6 +704,105 @@ export const agentActionsRelations = relations(agentActions, ({ one }) => ({
   }),
 }));
 
+export const familyLinksRelations = relations(familyLinks, ({ one, many }) => ({
+  inviter: one(users, {
+    fields: [familyLinks.inviterId],
+    references: [users.id],
+    relationName: "family_link_inviter",
+  }),
+  observer: one(users, {
+    fields: [familyLinks.observerId],
+    references: [users.id],
+    relationName: "family_link_observer",
+  }),
+  notes: many(waliNotes),
+}));
+
+export const interestsRelations = relations(interests, ({ one }) => ({
+  from: one(users, {
+    fields: [interests.fromId],
+    references: [users.id],
+    relationName: "interest_from",
+  }),
+  to: one(users, {
+    fields: [interests.toId],
+    references: [users.id],
+    relationName: "interest_to",
+  }),
+}));
+
+export const salaamQuotaRelations = relations(salaamQuota, ({ one }) => ({
+  user: one(users, {
+    fields: [salaamQuota.userId],
+    references: [users.id],
+  }),
+}));
+
+export const auditEventsRelations = relations(auditEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [auditEvents.userId],
+    references: [users.id],
+  }),
+}));
+
+export const consentGrantsRelations = relations(consentGrants, ({ one }) => ({
+  thread: one(threads, {
+    fields: [consentGrants.threadId],
+    references: [threads.id],
+  }),
+  seeker: one(users, {
+    fields: [consentGrants.seekerId],
+    references: [users.id],
+  }),
+}));
+
+export const waliDigestsRelations = relations(waliDigests, ({ one }) => ({
+  thread: one(threads, {
+    fields: [waliDigests.threadId],
+    references: [threads.id],
+  }),
+  observer: one(users, {
+    fields: [waliDigests.observerId],
+    references: [users.id],
+  }),
+}));
+
+export const waliNotesRelations = relations(waliNotes, ({ one }) => ({
+  familyLink: one(familyLinks, {
+    fields: [waliNotes.familyLinkId],
+    references: [familyLinks.id],
+  }),
+  from: one(users, {
+    fields: [waliNotes.fromId],
+    references: [users.id],
+    relationName: "wali_note_from",
+  }),
+  to: one(users, {
+    fields: [waliNotes.toId],
+    references: [users.id],
+    relationName: "wali_note_to",
+  }),
+}));
+
+export const sabrEventsRelations = relations(sabrEvents, ({ one }) => ({
+  thread: one(threads, {
+    fields: [sabrEvents.threadId],
+    references: [threads.id],
+  }),
+  reviewer: one(users, {
+    fields: [sabrEvents.reviewedBy],
+    references: [users.id],
+    relationName: "sabr_event_reviewer",
+  }),
+}));
+
+export const donationsRelations = relations(donations, ({ one }) => ({
+  user: one(users, {
+    fields: [donations.userId],
+    references: [users.id],
+  }),
+}));
+
 // ─── inferred types ────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -471,3 +824,21 @@ export type SalaamRequest = typeof salaamRequests.$inferSelect;
 export type NewSalaamRequest = typeof salaamRequests.$inferInsert;
 export type AgentAction = typeof agentActions.$inferSelect;
 export type NewAgentAction = typeof agentActions.$inferInsert;
+export type FamilyLink = typeof familyLinks.$inferSelect;
+export type NewFamilyLink = typeof familyLinks.$inferInsert;
+export type Interest = typeof interests.$inferSelect;
+export type NewInterest = typeof interests.$inferInsert;
+export type SalaamQuota = typeof salaamQuota.$inferSelect;
+export type NewSalaamQuota = typeof salaamQuota.$inferInsert;
+export type AuditEvent = typeof auditEvents.$inferSelect;
+export type NewAuditEvent = typeof auditEvents.$inferInsert;
+export type ConsentGrant = typeof consentGrants.$inferSelect;
+export type NewConsentGrant = typeof consentGrants.$inferInsert;
+export type WaliDigest = typeof waliDigests.$inferSelect;
+export type NewWaliDigest = typeof waliDigests.$inferInsert;
+export type WaliNote = typeof waliNotes.$inferSelect;
+export type NewWaliNote = typeof waliNotes.$inferInsert;
+export type SabrEvent = typeof sabrEvents.$inferSelect;
+export type NewSabrEvent = typeof sabrEvents.$inferInsert;
+export type Donation = typeof donations.$inferSelect;
+export type NewDonation = typeof donations.$inferInsert;

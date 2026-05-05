@@ -36,6 +36,13 @@
       "when": 1777973660473,
       "tag": "0004_service_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777988620477,
+      "tag": "0005_square_the_watchers",
+      "breakpoints": true
     }
   ]
 }

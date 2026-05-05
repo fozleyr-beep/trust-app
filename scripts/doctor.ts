@@ -28,6 +28,9 @@ const RECOMMENDED = [
   "CLERK_WEBHOOK_SECRET",
   "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
   "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
+  "TWILIO_ACCOUNT_SID",
+  "TWILIO_AUTH_TOKEN",
+  "TWILIO_VERIFY_SERVICE_SID",
   "STRIPE_SECRET_KEY",
   "STRIPE_PRICE_ID",
   "STRIPE_WEBHOOK_SECRET",
@@ -177,20 +180,32 @@ async function checkDatabaseSchema(): Promise<Check> {
     const got = new Set(tables.map((t) => t.table_name));
     const expected = [
       "agent_actions",
+      "audit_event",
       "billing_events",
+      "consent_grant",
       "device_keys",
+      "donation",
+      "family_link",
+      "interest",
+      "match_suggestions",
       "messages",
+      "sabr_event",
+      "salaam_quota",
+      "salaam_requests",
       "service_entitlements",
+      "service_profiles",
       "thread_members",
       "threads",
       "users",
+      "wali_digest",
+      "wali_note",
     ];
     const missing = expected.filter((e) => !got.has(e));
     if (missing.length > 0) {
       return {
         name: "db: schema",
         status: "fail",
-        detail: `missing tables: ${missing.join(", ")}. Run: npm run db:push`,
+        detail: `missing tables: ${missing.join(", ")}. Run: npx drizzle-kit migrate`,
       };
     }
     return {
