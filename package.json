@@ -26,7 +26,7 @@
     "check:bundle": "tsx scripts/check-bundle-budget.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@anthropic-ai/sdk": "^0.94.0",
     "@clerk/nextjs": "^6.10.0",
     "@neondatabase/serverless": "^0.10.4",
     "@playwright/test": "^1.59.1",
