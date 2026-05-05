@@ -1,5 +1,6 @@
 import type { Route } from "next";
 import { requireDbUser } from "@/lib/auth/current-user";
+import { getServiceEntitlement } from "@/lib/billing/stripe";
 import { BillingCheckoutButton } from "@/app/components/BillingCheckoutButton";
 import { AppServiceShell, StepCard } from "@/app/components/ServiceFlow";
 
@@ -37,7 +38,10 @@ const billingSteps = [
 ] as const;
 
 export default async function BillingPage() {
-  await requireDbUser();
+  const me = await requireDbUser();
+  const entitlement = await getServiceEntitlement(me.id);
+  const status = entitlement?.status ?? "inactive";
+  const isActive = status === "active" || status === "trialing";
 
   return (
     <AppServiceShell
@@ -60,13 +64,25 @@ export default async function BillingPage() {
             Launch checkout
           </p>
           <h2 className="mt-5 font-serif text-[1.8rem] leading-tight">
-            Self-serve payment
+            {isActive ? "Service access active" : "Self-serve payment"}
           </h2>
           <p className="mt-4 text-sm leading-6 text-[var(--color-ink-soft)]">
-            If Stripe is configured, this opens a hosted Checkout Session. If
-            not, the API returns a clear launch-gate response instead of
-            pretending payment is live.
+            {isActive
+              ? "Stripe webhook confirmation has unlocked the service gate for this account."
+              : "If Stripe is configured, this opens a hosted Checkout Session. If not, the API returns a clear launch-gate response instead of pretending payment is live."}
           </p>
+          <div className="mt-5 rounded border border-[var(--color-rule)] bg-[var(--color-paper-soft)] p-4">
+            <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
+              Entitlement
+            </p>
+            <p className="mt-2 font-serif text-[1.35rem]">{status}</p>
+            {entitlement?.currentPeriodEnd && (
+              <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
+                Current period ends{" "}
+                {new Date(entitlement.currentPeriodEnd).toLocaleDateString()}
+              </p>
+            )}
+          </div>
           <div className="mt-6">
             <BillingCheckoutButton />
           </div>

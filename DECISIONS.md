@@ -77,8 +77,10 @@ The in-app route map now follows that operating model:
 `/app/onboarding`, `/app/verification`, `/app/billing`, `/app/matches`,
 `/app/salaam`, `/app/family`, then encrypted rooms in `/app/threads`.
 Stripe Checkout is allowed without a new product decision because it supports
-self-serve payment; it must stay launch-gated until `STRIPE_SECRET_KEY`,
-`STRIPE_PRICE_ID`, and webhook handling are configured.
+self-serve payment. The payment entitlement model is `billing_events` for
+idempotent webhook receipt plus `service_entitlements` as the user-facing access
+gate; it must stay launch-gated until `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`,
+and `STRIPE_WEBHOOK_SECRET` are configured in production.
 
 ---
 

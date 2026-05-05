@@ -6,6 +6,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -127,6 +128,62 @@ export const messages = pgTable(
   }),
 );
 
+// ─── service_entitlements ─────────────────────────────────────────────
+// One row per user for the zero-human service gate. Stripe webhooks update
+// this row; app routes can read it without calling Stripe synchronously.
+export const serviceEntitlements = pgTable(
+  "service_entitlements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("inactive"),
+    source: text("source").notNull().default("stripe"),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    userUnique: uniqueIndex("service_entitlements_user_idx").on(t.userId),
+    stripeCustomerIdx: index("service_entitlements_stripe_customer_idx").on(
+      t.stripeCustomerId,
+    ),
+    stripeSubscriptionIdx: index(
+      "service_entitlements_stripe_subscription_idx",
+    ).on(t.stripeSubscriptionId),
+  }),
+);
+
+// ─── billing_events ───────────────────────────────────────────────────
+// Idempotency ledger for Stripe webhooks. The raw event payload is kept for
+// operational audit, not as a product-facing profile field.
+export const billingEvents = pgTable(
+  "billing_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider").notNull().default("stripe"),
+    eventId: text("event_id").notNull(),
+    type: text("type").notNull(),
+    payload: text("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    providerEventUnique: uniqueIndex("billing_events_provider_event_idx").on(
+      t.provider,
+      t.eventId,
+    ),
+  }),
+);
+
 // ─── relations ─────────────────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
   devices: many(deviceKeys),
@@ -177,6 +234,16 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
+export const serviceEntitlementsRelations = relations(
+  serviceEntitlements,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [serviceEntitlements.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
 // ─── inferred types ────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -186,3 +253,7 @@ export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export type DeviceKey = typeof deviceKeys.$inferSelect;
 export type NewDeviceKey = typeof deviceKeys.$inferInsert;
+export type ServiceEntitlement = typeof serviceEntitlements.$inferSelect;
+export type NewServiceEntitlement = typeof serviceEntitlements.$inferInsert;
+export type BillingEvent = typeof billingEvents.$inferSelect;
+export type NewBillingEvent = typeof billingEvents.$inferInsert;

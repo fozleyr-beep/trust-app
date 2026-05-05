@@ -50,8 +50,10 @@ npm run dev         # http://localhost:3000
 6. Assistant calls use Vercel AI Gateway through the project OIDC token in
    production. No raw Anthropic key is required on Vercel.
 7. Optional payments: add `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, and
-   `STRIPE_WEBHOOK_SECRET` before making `/app/billing` public as live payment.
-   Without them, the billing API returns a clear launch-gate response.
+   `STRIPE_WEBHOOK_SECRET`, then run migrations. `/api/billing/webhook`
+   verifies Stripe signatures, records idempotent billing events, and updates
+   `service_entitlements`. Without checkout keys, the billing API returns a
+   clear launch-gate response.
 8. Optional: in Clerk dashboard → Webhooks, add an endpoint pointing to
    `https://<your-domain>/api/webhooks/clerk`. Copy the signing secret into
    `CLERK_WEBHOOK_SECRET`. Lazy backfill still covers signed-in users without
@@ -80,6 +82,7 @@ app/
   api/
     agent/                   # streaming Anthropic, rate-limited
     billing/checkout/        # Stripe Checkout if env configured
+    billing/webhook/         # Stripe signature verification + entitlements
     device-keys/             # POST register / rotate
     sender-keys/             # POST fetch peer pubkeys
     threads/[id]/messages/   # POST fanout, GET decrypt-list
@@ -116,6 +119,7 @@ scripts/
 | You can rotate if compromised | `/app/settings` → Rotate, preserves past-message access |
 | You can export your full history | `/app/settings` → Export, runs entirely in the browser |
 | You can delete your account | `/app/settings` → Danger zone (typed confirmation) |
+| Paid service access is self-serve | `service_entitlements` updated by `/api/billing/webhook` |
 | Server holds metadata, not plaintext | `lib/db/schema.ts` — `messages.ciphertext` is bytea only |
 
 ## License

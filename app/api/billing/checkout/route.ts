@@ -38,7 +38,9 @@ export async function POST(req: Request) {
     customer_email: me.email,
     "line_items[0][price]": price,
     "line_items[0][quantity]": "1",
+    client_reference_id: me.id,
     "metadata[user_id]": me.id,
+    "subscription_data[metadata][user_id]": me.id,
   });
 
   const res = await fetch(STRIPE_CHECKOUT_URL, {

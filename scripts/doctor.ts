@@ -175,7 +175,15 @@ async function checkDatabaseSchema(): Promise<Check> {
       order by table_name
     `) as Array<{ table_name: string }>;
     const got = new Set(tables.map((t) => t.table_name));
-    const expected = ["device_keys", "messages", "thread_members", "threads", "users"];
+    const expected = [
+      "billing_events",
+      "device_keys",
+      "messages",
+      "service_entitlements",
+      "thread_members",
+      "threads",
+      "users",
+    ];
     const missing = expected.filter((e) => !got.has(e));
     if (missing.length > 0) {
       return {
@@ -187,7 +195,7 @@ async function checkDatabaseSchema(): Promise<Check> {
     return {
       name: "db: schema",
       status: "ok",
-      detail: `all 5 tables present`,
+      detail: `all ${expected.length} tables present`,
     };
   } catch (err) {
     return {

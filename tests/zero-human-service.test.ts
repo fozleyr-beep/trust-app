@@ -44,6 +44,8 @@ describe("zero-human service path", () => {
     expect(read(".env.example")).toContain("STRIPE_SECRET_KEY");
     expect(read(".env.example")).toContain("STRIPE_PRICE_ID");
     expect(read("app/api/billing/checkout/route.ts")).toContain("status: 501");
+    expect(read("app/api/billing/webhook/route.ts")).toContain("STRIPE_WEBHOOK_SECRET");
+    expect(read("middleware.ts")).toContain("/api/billing/webhook");
     expect(read("DECISIONS.md")).toContain("zero human operator");
     expect(read("DECISIONS.md")).toContain("/app/billing");
   });

@@ -44,6 +44,7 @@ production:
     - "/api/agent — uses direct ANTHROPIC_API_KEY when present; production can also use Vercel AI Gateway via OIDC."
     - "/api/webhooks/clerk — optional canonical sync; lazy-backfill covers signed-in users in v1."
     - "/api/billing/checkout — opens Stripe Checkout when STRIPE_SECRET_KEY + STRIPE_PRICE_ID are set; otherwise returns a launch-gate 501."
+    - "/api/billing/webhook — verifies STRIPE_WEBHOOK_SECRET, records billing_events, updates service_entitlements."
 
 # ─── Read these first ──────────────────────────────────────────────────
 critical_reads:
@@ -115,7 +116,7 @@ outstanding:
     - "Switch Clerk dev keys (pk_test_/sk_test_) to live keys (pk_live_/sk_live_); update Vercel env, redeploy"
     - "Custom domain via Vercel → Domains; if domain changes, update Clerk webhook URL + middleware.ts CSP allowlist"
     - "Assistant billing/spend controls — direct Anthropic key or Vercel AI Gateway path must be watched before traffic"
-    - "Stripe billing — configure STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET, then add webhook-confirmed entitlement storage"
+    - "Stripe billing — configure STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET, run migrations, then test Checkout → webhook → service_entitlements active"
     - "Sentry (or equivalent) for client + server error capture — third-party decision; would need /trust copy update"
     - "Spot-check the heaviest routes; bundle budget is enforced in CI but worth a one-off audit"
 

@@ -165,8 +165,10 @@ stays launch-gated until these production env vars exist:
 - `STRIPE_WEBHOOK_SECRET`
 
 Without the first two, `POST /api/billing/checkout` returns HTTP 501 with a
-clear launch-gate message. Before public payment traffic, add webhook-confirmed
-entitlement storage so paid access unlocks matching without staff action.
+clear launch-gate message. With the webhook secret set,
+`POST /api/billing/webhook` verifies Stripe's signature, records each event once
+in `billing_events`, and updates `service_entitlements` so paid access can
+unlock matching without staff action.
 
 ---
 
