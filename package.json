@@ -13,6 +13,7 @@
     "doctor": "tsx scripts/doctor.ts",
     "mobile:start": "npm --prefix mobile run start",
     "mobile:android": "npm --prefix mobile run android",
+    "mobile:check": "tsx scripts/check-mobile-readiness.ts",
     "mobile:typecheck": "npm --prefix mobile run typecheck",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",

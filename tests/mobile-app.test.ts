@@ -68,4 +68,24 @@ describe("mobile app foundation", () => {
     expect(app).toContain("verifyEmailCode");
     expect(app).toContain("TextInput");
   });
+
+  it("has an Android auth QA readiness check", () => {
+    const pkg = read("package.json");
+    const check = read("scripts/check-mobile-readiness.ts");
+    expect(pkg).toContain('"mobile:check"');
+    expect(read(".env.example")).toContain("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
+    expect(check).toContain("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
+    expect(check).toContain("mobile readiness");
+    expect(check).toContain("permissions");
+  });
+
+  it("starts signed-in users with a consent-first onboarding gate", () => {
+    const app = read("mobile/App.tsx");
+    expect(app).toContain("OnboardingGate");
+    expect(app).toContain("Start Sakinah");
+    expect(app).toContain("Seeker");
+    expect(app).toContain("Family");
+    expect(app).toContain("Privacy consent is required");
+    expect(app).toContain("Save onboarding");
+  });
 });

@@ -48,6 +48,7 @@ const stateCopy: Record<AgentStageState, string> = {
 
 type TabName = "path" | "agents" | "account" | "store";
 type AuthMode = "sign-in" | "sign-up";
+type Intent = "seeker" | "family";
 
 export default function App() {
   const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -251,14 +252,100 @@ function AuthenticatedAccountTab({ apiBaseUrl }: { apiBaseUrl: string }) {
         <Text style={styles.cardBody}>
           {user?.primaryEmailAddress?.emailAddress ??
             user?.fullName ??
-            "Private Sakinah account"}
+          "Private Sakinah account"}
         </Text>
       </Card>
+      <OnboardingGate />
       <Pressable style={styles.primaryButton} onPress={() => void signOut()}>
         <Text style={styles.primaryButtonText}>Sign out</Text>
       </Pressable>
       <AccountLinks apiBaseUrl={apiBaseUrl} hideSignIn />
     </View>
+  );
+}
+
+function OnboardingGate() {
+  const [intent, setIntent] = useState<Intent>("seeker");
+  const [location, setLocation] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [status, setStatus] = useState("Tell the agents where to begin.");
+
+  function onSave() {
+    if (!location.trim()) {
+      setStatus("City or region is required.");
+      return;
+    }
+    if (!consent) {
+      setStatus("Privacy consent is required before agents can start.");
+      return;
+    }
+    setStatus(
+      intent === "seeker"
+        ? "Seeker path ready. Hafiz can begin verification."
+        : "Family path ready. Adil can prepare consent boundaries.",
+    );
+  }
+
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>Start Sakinah</Text>
+      <Text style={styles.cardBody}>{status}</Text>
+      <View style={styles.choiceRow}>
+        <Choice
+          active={intent === "seeker"}
+          label="Seeker"
+          onPress={() => setIntent("seeker")}
+        />
+        <Choice
+          active={intent === "family"}
+          label="Family"
+          onPress={() => setIntent("family")}
+        />
+      </View>
+      <AuthInput
+        onChangeText={setLocation}
+        placeholder="City or region"
+        value={location}
+      />
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: consent }}
+        style={styles.consentRow}
+        onPress={() => setConsent((current) => !current)}
+      >
+        <View style={[styles.checkbox, consent && styles.checkboxActive]} />
+        <Text style={styles.consentText}>
+          I agree Sakinah agents may use this profile state to prepare service
+          steps.
+        </Text>
+      </Pressable>
+      <Pressable style={styles.primaryButton} onPress={onSave}>
+        <Text style={styles.primaryButtonText}>Save onboarding</Text>
+      </Pressable>
+    </Card>
+  );
+}
+
+function Choice({
+  active,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      style={[styles.choice, active && styles.choiceActive]}
+      onPress={onPress}
+    >
+      <Text style={[styles.choiceText, active && styles.choiceTextActive]}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -724,6 +811,54 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 14,
     paddingVertical: 13,
+  },
+  choiceRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 14,
+  },
+  choice: {
+    alignItems: "center",
+    borderColor: colors.rule,
+    borderRadius: 10,
+    borderWidth: 1,
+    flex: 1,
+    paddingVertical: 13,
+  },
+  choiceActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  choiceText: {
+    color: colors.inkMuted,
+    fontSize: 14,
+  },
+  choiceTextActive: {
+    color: colors.paper,
+  },
+  consentRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 14,
+  },
+  checkbox: {
+    borderColor: colors.inkMuted,
+    borderRadius: 5,
+    borderWidth: 1,
+    height: 20,
+    marginTop: 1,
+    width: 20,
+  },
+  checkboxActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  consentText: {
+    color: colors.inkMuted,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
   },
   arabic: {
     color: colors.inkMuted,

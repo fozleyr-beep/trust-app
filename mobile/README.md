@@ -12,6 +12,12 @@ npm install
 npm run start
 ```
 
+Before Android device QA, expose Clerk to Expo:
+
+```bash
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY="$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" npm run mobile:check
+```
+
 ## Android build path
 
 ```bash
@@ -34,6 +40,9 @@ profile creates an Android App Bundle for Play Console.
   wrapped with `@clerk/expo` and `@clerk/expo/token-cache` for secure native
   session persistence, with native email/password sign-in and verified sign-up
   screens in the Account tab.
+- Run `npm run mobile:check` before Android emulator/device QA. It should have
+  zero failures; one warning means the Expo publishable key still needs to be
+  exported for the mobile runtime.
 - Port device-key generation and encrypted messaging storage to native secure
   storage before opening real rooms.
 - Decide Android payments policy before exposing paid service unlocks in-app.

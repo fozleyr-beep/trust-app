@@ -40,9 +40,8 @@ for Play Console, and leaves iOS open when the Apple Developer account is ready.
 
 ## Next slices
 
-1. Android device QA for native Clerk email sign-in/up.
-2. Native key storage and encrypted messaging port.
-3. Android payment policy decision and implementation.
-4. Play Store assets and internal testing release.
-5. Move the API base URL to `https://sakinah.family` once the domain points at
+1. Native key storage and encrypted messaging port.
+2. Android payment policy decision and implementation.
+3. Play Store assets and internal testing release.
+4. Move the API base URL to `https://sakinah.family` once the domain points at
    this app.
