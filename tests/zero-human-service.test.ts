@@ -108,6 +108,7 @@ describe("zero-human service path", () => {
     expect(readiness).toContain("CLERK_WEBHOOK_SECRET");
     expect(readiness).toContain("STRIPE_WEBHOOK_SECRET");
     expect(readiness).toContain("R2_SECRET_ACCESS_KEY");
+    expect(readiness).toContain("PHOTO_ACCESS_TOKEN_SECRET");
     expect(readiness).not.toContain("process.env.R2_SECRET_ACCESS_KEY!");
   });
 

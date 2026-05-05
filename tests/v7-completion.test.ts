@@ -41,6 +41,12 @@ describe("v7 completion contract", () => {
 
   it("enforces photo, salaam, wali, and admin contracts in code", () => {
     expect(read("app/api/photos/[id]/route.ts")).toContain("status: 403");
+    expect(read("app/api/photos/[id]/route.ts")).toContain(
+      "verifyPhotoAccessToken",
+    );
+    expect(read("app/api/photos/[id]/route.ts")).toContain(
+      "createR2SignedGetUrl",
+    );
     expect(read("lib/service/operations.ts")).toContain(
       "weekly salaam quota reached",
     );

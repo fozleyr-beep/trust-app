@@ -95,8 +95,9 @@ export function getProviderReadiness(env: Env = process.env) {
         "R2_SECRET_ACCESS_KEY",
         "R2_BUCKET",
         "R2_BUCKET_VOICE",
+        "PHOTO_ACCESS_TOKEN_SECRET",
       ],
-      next: "Create private R2 buckets and add scoped access keys.",
+      next: "Create private R2 buckets and add scoped access keys plus PHOTO_ACCESS_TOKEN_SECRET.",
     }),
     item(env, {
       id: "wali-digest",
