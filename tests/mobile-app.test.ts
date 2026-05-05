@@ -34,4 +34,13 @@ describe("mobile app foundation", () => {
     expect(eas).toContain('"buildType": "app-bundle"');
     expect(eas).toContain('"track": "internal"');
   });
+
+  it("keeps Play-required account and privacy links reachable", () => {
+    const app = read("mobile/App.tsx");
+    expect(existsSync(join(root, "app/privacy/page.tsx"))).toBe(true);
+    expect(existsSync(join(root, "app/account/delete/page.tsx"))).toBe(true);
+    expect(app).toContain("/account/delete");
+    expect(app).toContain("/privacy");
+    expect(app).toContain("/sign-in");
+  });
 });

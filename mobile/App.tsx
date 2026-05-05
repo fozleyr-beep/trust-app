@@ -37,8 +37,10 @@ const stateCopy: Record<AgentStageState, string> = {
   gate: "Launch gate",
 };
 
+type TabName = "path" | "agents" | "account" | "store";
+
 export default function App() {
-  const [tab, setTab] = useState<"path" | "agents" | "store">("path");
+  const [tab, setTab] = useState<TabName>("path");
   const apiBaseUrl = useMemo(() => {
     const extra = Constants.expoConfig?.extra as
       | { apiBaseUrl?: string }
@@ -77,6 +79,11 @@ export default function App() {
             onPress={() => setTab("agents")}
           />
           <Tab
+            label="Account"
+            active={tab === "account"}
+            onPress={() => setTab("account")}
+          />
+          <Tab
             label="Store"
             active={tab === "store"}
             onPress={() => setTab("store")}
@@ -112,6 +119,36 @@ export default function App() {
                 <Text style={styles.boundary}>{agent.boundary}</Text>
               </Card>
             ))}
+          </View>
+        )}
+
+        {tab === "account" && (
+          <View style={styles.stack}>
+            <Card>
+              <Text style={styles.cardTitle}>Native auth gate</Text>
+              <Text style={styles.cardBody}>
+                Clerk native auth is the next implementation slice. Until it is
+                wired, the app sends users to the hosted sign-in route.
+              </Text>
+            </Card>
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => Linking.openURL(`${apiBaseUrl}/sign-in`)}
+            >
+              <Text style={styles.primaryButtonText}>Open sign in</Text>
+            </Pressable>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => Linking.openURL(`${apiBaseUrl}/account/delete`)}
+            >
+              <Text style={styles.secondaryButtonText}>Delete account</Text>
+            </Pressable>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => Linking.openURL(`${apiBaseUrl}/privacy`)}
+            >
+              <Text style={styles.secondaryButtonText}>Privacy policy</Text>
+            </Pressable>
           </View>
         )}
 
@@ -355,6 +392,17 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: colors.paper,
+    fontSize: 15,
+  },
+  secondaryButton: {
+    alignItems: "center",
+    borderColor: colors.ink,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 15,
+  },
+  secondaryButtonText: {
+    color: colors.ink,
     fontSize: 15,
   },
 });

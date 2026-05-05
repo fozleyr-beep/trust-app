@@ -68,6 +68,8 @@ app/
   layout.tsx                 # root, conditional ClerkProvider
   page.tsx                   # Sakinah landing page
   trust/page.tsx             # the human-readable trust contract
+  privacy/page.tsx           # public privacy policy for web/mobile stores
+  account/delete/page.tsx    # public account deletion instructions
   sign-in/[[...sign-in]]/    # Clerk-hosted UI
   sign-up/[[...sign-up]]/
   app/                       # post-auth surfaces

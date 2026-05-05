@@ -20,9 +20,9 @@ for Play Console, and leaves iOS open when the Apple Developer account is ready.
 ## Play Store policy gates
 
 - Account creation means account deletion must be available inside the app and
-  from a public web URL.
+  from a public web URL. Current route: `/account/delete`.
 - Play listing needs a public, non-PDF privacy policy URL that names the app and
-  developer entity.
+  developer entity. Current route: `/privacy`.
 - Data safety must match what the app actually collects and shares.
 - Avoid sensitive permissions unless they are required for a user-visible
   feature.
@@ -41,7 +41,7 @@ for Play Console, and leaves iOS open when the Apple Developer account is ready.
 ## Next slices
 
 1. Native Clerk auth.
-2. Mobile account deletion and privacy links.
+2. Replace hosted sign-in link with native sign-in/up screens.
 3. Native key storage and encrypted messaging port.
 4. Android payment policy decision and implementation.
 5. Play Store assets and internal testing release.

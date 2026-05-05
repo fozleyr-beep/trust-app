@@ -94,7 +94,9 @@ Mobile is the primary product surface. The chosen path is Expo React Native in
 same codebase once an Apple Developer account exists. Do not ship Android
 in-app paid access through Stripe until the Play payments policy decision is
 resolved; default to Google Play Billing for in-app unlocks unless a documented
-exception applies.
+exception applies. The mobile app must expose account deletion and privacy
+policy links before Play review; the current public routes are `/account/delete`
+and `/privacy`.
 
 ---
 
