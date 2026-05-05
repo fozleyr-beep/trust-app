@@ -1,16 +1,18 @@
-# trust-app
+# trust-app / Sakinah.family
 
-A trust-stack messaging product: end-to-end encrypted threads with people +
-a separate Claude assistant that cannot read those messages, with the
-contract written down on `/trust` and enforced by tests and a strict CSP.
+A private Sakinah.family build inside the `trust-app` repo: end-to-end
+encrypted rooms with people, a separate Claude assistant that cannot read those
+messages, and a Sand & Sage public trust surface based on the Sakinah design
+archive.
 
 Stack:
 
 - Next.js 15 (App Router) + TypeScript strict
 - Tailwind v4 (CSS-first config)
+- Sakinah Sand & Sage visual tokens in `app/globals.css`
 - Drizzle ORM on Postgres / Neon
 - Clerk auth (+ webhook → Drizzle user mirror)
-- Claude Sonnet 4.5 (`claude-sonnet-4-5`)
+- Claude Sonnet 4.5 via Anthropic direct key or Vercel AI Gateway OIDC
 - `tweetnacl` for `crypto_box` (X25519 + XSalsa20-Poly1305) — see
   [DECISIONS.md § Crypto primitive](./DECISIONS.md) for why this isn't
   libsodium
@@ -26,7 +28,8 @@ Source of truth:
 ```bash
 cp .env.example .env.local
 # fill: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY,
-#       CLERK_WEBHOOK_SECRET, DATABASE_URL, ANTHROPIC_API_KEY
+#       DATABASE_URL
+# optional local assistant probe: AI_GATEWAY_API_KEY or ANTHROPIC_API_KEY
 npm install
 npm run db:push     # one-time — creates the 5 tables in Neon
 npm run doctor      # preflight: env + connectivity probes
@@ -41,16 +44,19 @@ npm run dev         # http://localhost:3000
 3. Set env vars from `.env.example` in the Vercel project settings.
 4. Provision a Neon database and paste `DATABASE_URL`.
 5. Run migrations: `DATABASE_URL=… npm run db:push`.
-6. In Clerk dashboard → Webhooks, add an endpoint pointing to
+6. Assistant calls use Vercel AI Gateway through the project OIDC token in
+   production. No raw Anthropic key is required on Vercel.
+7. Optional: in Clerk dashboard → Webhooks, add an endpoint pointing to
    `https://<your-domain>/api/webhooks/clerk`. Copy the signing secret into
-   `CLERK_WEBHOOK_SECRET`.
+   `CLERK_WEBHOOK_SECRET`. Lazy backfill still covers signed-in users without
+   the webhook.
 
 ## Layout
 
 ```
 app/
   layout.tsx                 # root, conditional ClerkProvider
-  page.tsx                   # / → /trust
+  page.tsx                   # Sakinah landing page
   trust/page.tsx             # the human-readable trust contract
   sign-in/[[...sign-in]]/    # Clerk-hosted UI
   sign-up/[[...sign-up]]/

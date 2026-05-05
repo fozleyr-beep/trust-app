@@ -20,7 +20,7 @@ export default async function AgentPage() {
         not end-to-end encrypted, by design — the assistant has to read what
         you send it. It cannot see your messages with other people.{" "}
         <Link
-          className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
+          className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-ink)]"
           href={"/trust" as Route}
         >
           Read the trust contract
@@ -32,7 +32,7 @@ export default async function AgentPage() {
 
       <p className="mt-12 text-sm">
         <Link
-          className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
+          className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-ink)]"
           href={"/app" as Route}
         >
           ← Back

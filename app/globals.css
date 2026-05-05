@@ -1,34 +1,43 @@
 @import "tailwindcss";
 
-/* ─── tokens ──────────────────────────────────────────────────────────
-   Restraint register: ink-on-paper. Mirror of handoff.yaml `tokens:`.
-   Brand-locked palette is a later track; until then this is the visual.
-   ──────────────────────────────────────────────────────────────────── */
+/* Sakinah.family tokens. Sand & Sage is locked by the design source. */
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  --font-serif: ui-serif, "Iowan Old Style", "Apple Garamond", Georgia, serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
-    monospace;
+    "Inter", "Segoe UI", sans-serif;
+  --font-serif: ui-serif, "Fraunces", "Iowan Old Style", "Apple Garamond",
+    Georgia, serif;
+  --font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, "SF Mono",
+    Menlo, Consolas, monospace;
 
-  --color-ink: #0e0f10;
-  --color-ink-soft: #2a2c2f;
-  --color-ink-muted: #5a5d63;
-  --color-paper: #fafaf7;
-  --color-rule: #e6e4dc;
-  --color-accent: #6b3f2a;
+  --color-ink: #2a2722;
+  --color-ink-soft: #5a5448;
+  --color-ink-muted: #7a6e5c;
+  --color-ink-faint: #a89d87;
+  --color-paper: #f5efe6;
+  --color-paper-soft: #eae2d2;
+  --color-surface: #fffaf1;
+  --color-rule: rgba(42, 39, 34, 0.09);
+  --color-accent: #8a9a7b;
 }
 
 html,
 body {
   background: var(--color-paper);
   color: var(--color-ink);
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum";
 }
 
 ::selection {
   background: var(--color-ink);
   color: var(--color-paper);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }

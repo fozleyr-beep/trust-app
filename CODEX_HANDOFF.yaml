@@ -25,7 +25,7 @@ meta:
 
 repo:
   url: https://github.com/fozleyr-beep/trust-app
-   visibility: public
+  visibility: public
   default_branch: main
   ci: GitHub Actions (.github/workflows/ci.yml) on push + PR
 
@@ -33,15 +33,15 @@ production:
   url: https://trust-app-three.vercel.app
   status: READY
   surface_verified:
-    - "GET /            → 307 → /trust"
+    - "GET /            → 200 (Sakinah landing page)"
     - "GET /trust       → 200 (CSP + HSTS + Permissions-Policy)"
     - "GET /sign-in     → 200 (Clerk-hosted UI)"
     - "GET /sign-up     → 200"
     - "GET /api/health  → {ok: true, ts: <iso>}"
     - "GET /app         → 307 to /sign-in?redirect_url=… (auth gate)"
-  surface_pending:
-    - "/api/agent — needs ANTHROPIC_API_KEY in Vercel; returns 500 today"
-    - "/api/webhooks/clerk — works once CLERK_WEBHOOK_SECRET added; lazy-backfill covers v1"
+  surface_runtime_notes:
+    - "/api/agent — uses direct ANTHROPIC_API_KEY when present; production can also use Vercel AI Gateway via OIDC."
+    - "/api/webhooks/clerk — optional canonical sync; lazy-backfill covers signed-in users in v1."
 
 # ─── Read these first ──────────────────────────────────────────────────
 critical_reads:
@@ -74,7 +74,8 @@ quickstart:
     - "cd trust-app"
     - "cp .env.example .env.local"
     - "# fill in: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY,"
-    - "#          CLERK_WEBHOOK_SECRET, DATABASE_URL, ANTHROPIC_API_KEY"
+    - "#          DATABASE_URL"
+    - "# optional local assistant probe: AI_GATEWAY_API_KEY or ANTHROPIC_API_KEY"
     - "npm install"
     - "set -a; source .env.local; set +a"
     - "npm run doctor              # red lines = fix before continuing"
@@ -95,23 +96,10 @@ quickstart:
 
 # ─── Outstanding work (priority order) ─────────────────────────────────
 outstanding:
-  immediate:
-    - title: Set ANTHROPIC_API_KEY in Vercel production
-      why: /api/agent route returns 500 without it; rest of app works.
-      commands: |
-        cd /Users/user/trust-app
-        printf '%s' "<anthropic-key>" | npx vercel@latest env add ANTHROPIC_API_KEY production
-        npx vercel@latest deploy --prod --yes
-      verify: "curl -X POST https://trust-app-three.vercel.app/api/agent ... should stream"
-
+  immediate: []
+  optional:
     - title: Configure Clerk webhook + CLERK_WEBHOOK_SECRET
-      why: |
-        Lazy-backfill in lib/auth/current-user.ts is the v1 fallback.
-        Webhook is the canonical user-mirror sync.
-      blocker: |
-        Clerk's webhook UI uses a Svix iframe that didn't accept
-        page-level click automation in the deploy session. Set up
-        manually via the dashboard (~3 min).
+      why: "Lazy-backfill covers signed-in users in v1; webhook adds canonical Clerk delete/update sync."
       manual_steps:
         - "Open Clerk dashboard → Webhooks for app_3DGyGaZc5v47bXDEQiYZK1zIf1k"
         - "+ Add Endpoint → URL = https://trust-app-three.vercel.app/api/webhooks/clerk"
@@ -123,7 +111,7 @@ outstanding:
   before_public_launch:
     - "Switch Clerk dev keys (pk_test_/sk_test_) to live keys (pk_live_/sk_live_); update Vercel env, redeploy"
     - "Custom domain via Vercel → Domains; if domain changes, update Clerk webhook URL + middleware.ts CSP allowlist"
-    - "Anthropic billing — confirm a paid plan is attached if expecting any meaningful traffic"
+    - "Assistant billing/spend controls — direct Anthropic key or Vercel AI Gateway path must be watched before traffic"
     - "Sentry (or equivalent) for client + server error capture — third-party decision; would need /trust copy update"
     - "Spot-check the heaviest routes; bundle budget is enforced in CI but worth a one-off audit"
 
@@ -162,7 +150,7 @@ stack:
   auth: "@clerk/nextjs@6 (catch-all sign-in/up + svix-verified webhook)"
   ai_sdk: "@anthropic-ai/sdk"
   ai_model: claude-sonnet-4-5 (locked per DECISIONS.md)
-  crypto: tweetnacl (crypto_box: X25519 + XSalsa20-Poly1305)
+  crypto: "tweetnacl (crypto_box: X25519 + XSalsa20-Poly1305)"
   validation: zod@4 (every API body)
   tests: vitest@4
   ci: github-actions
@@ -349,7 +337,7 @@ env_vars:
     - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     - CLERK_SECRET_KEY
     - DATABASE_URL
-    - ANTHROPIC_API_KEY
+    - "assistant provider: ANTHROPIC_API_KEY or AI_GATEWAY_API_KEY or Vercel OIDC"
   recommended:
     - CLERK_WEBHOOK_SECRET
     - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
@@ -362,12 +350,14 @@ env_vars:
     neon_database_url: |
       neonctl connection-string --project-id odd-scene-06932368
       (or Neon dashboard → trust-app → Connection Details → Pooled)
-    anthropic_api_key: "https://console.anthropic.com → API Keys"
+    anthropic_api_key: "https://console.anthropic.com → API Keys (direct path)"
+    vercel_ai_gateway_oidc: "Vercel project has OIDC enabled; lib/ai/client.ts uses VERCEL_OIDC_TOKEN when present."
     clerk_webhook_secret: "Clerk dashboard → Webhooks → endpoint → signing secret"
 
   on_vercel_production:
-    set_count: 7
-    missing: [ANTHROPIC_API_KEY, CLERK_WEBHOOK_SECRET]
+    set_count: 8
+    missing: []
+    optional_missing: [CLERK_WEBHOOK_SECRET]
 
   local:
     file: .env.local (gitignored)
@@ -381,7 +371,7 @@ infrastructure:
     region: iad1                       # Washington DC = AWS us-east-1
     git_connected: true
     auto_deploy: pushes to main
-    cli: "npx vercel@latest" (no global install needed)
+    cli: "npx vercel@latest (no global install needed)"
 
   database:
     provider: neon
@@ -458,25 +448,28 @@ locked_decisions:
 # ─── Assets / design ───────────────────────────────────────────────────
 assets:
   visual_identity:
-    status: placeholder (ink-on-paper)
-    locked: false
+    status: implemented (Sakinah Sand & Sage)
+    locked: true
     location: app/globals.css `@theme` block + tokens mirrored in handoff.yaml
     palette:
-      ink: "#0e0f10"
-      ink-soft: "#2a2c2f"
-      ink-muted: "#5a5d63"
-      paper: "#fafaf7"
-      rule: "#e6e4dc"
-      accent: "#6b3f2a"
+      ink: "#2a2722"
+      ink-soft: "#5a5448"
+      ink-muted: "#7a6e5c"
+      ink-faint: "#a89d87"
+      paper: "#f5efe6"
+      paper-soft: "#eae2d2"
+      surface: "#fffaf1"
+      rule: "rgba(42, 39, 34, 0.09)"
+      accent: "#8a9a7b"
     fonts:
-      sans: ui-sans-serif system stack
-      serif: ui-serif Iowan Old Style stack (used for headings)
-      mono: ui-monospace SFMono stack (used for fingerprints, labels, codes)
+      sans: Inter fallback stack
+      serif: Fraunces fallback stack (used for headings and wordmark)
+      mono: JetBrains Mono fallback stack (used for numbers, labels, codes)
     notes: |
-      Brand palette is intentionally a later track. /trust is restrained
-      by design — that aesthetic is content-driven (typography +
-      whitespace), not asset-driven. There are no logo files, no SVG
-      illustrations, no brand graphics committed.
+      Public / and /trust now follow the Sakinah design archive: lowercase
+      serif italic wordmark, Sand & Sage colors, four named agents, trust chips
+      that name the agent, silhouette photo-gate preview, and live-vs-launch
+      trust claims kept separate.
 
   brand_assets:
     logo: none
@@ -512,11 +505,11 @@ assets:
 gotchas:
   - id: drizzle-kit-push-interactive
     description: "`drizzle-kit push` uses an inquirer prompt; piped stdin doesn't always work. db:check can pass while migrations weren't actually applied."
-    fix: Use `drizzle-kit migrate` for prod schema apply (applies committed drizzle/*.sql files). db:push is OK for local dev iteration.
+    fix: "Use `drizzle-kit migrate` for prod schema apply (applies committed drizzle/*.sql files). db:push is OK for local dev iteration."
 
   - id: drizzle-kit-no-dotenv
     description: "drizzle-kit doesn't auto-load .env.local; DATABASE_URL must be in the process env."
-    fix: "set -a; source .env.local; set +a" before any drizzle-kit command.
+    fix: "set -a; source .env.local; set +a before any drizzle-kit command."
 
   - id: clerk-secret-key-clipboard-only
     description: "Clerk secret key never appears in DOM as plaintext (input.value is masked); only retrievable via clipboard."
@@ -563,15 +556,15 @@ codex_notes:
 
   reversible_actions_codex_can_take_freely:
     - file edits, new files, refactors
-    - `git commit`, `git push origin main` (PAT is configured)
-    - `npm install <dep>` (deps land in package.json + lockfile, reviewable)
-    - `npx drizzle-kit generate` (creates migration; reviewable)
-    - `npm run dev` / `npm run build` / `npm test`
+    - "`git commit`, `git push origin main` (PAT is configured)"
+    - "`npm install <dep>` (deps land in package.json + lockfile, reviewable)"
+    - "`npx drizzle-kit generate` (creates migration; reviewable)"
+    - "`npm run dev` / `npm run build` / `npm test`"
     - vercel deploy (auto-deploys on push)
 
   irreversible_actions_codex_must_confirm:
-    - `git push --force` to main
-    - `git reset --hard` on a branch with uncommitted work
+    - "`git push --force` to main"
+    - "`git reset --hard` on a branch with uncommitted work"
     - dropping or destructive ALTER on Neon (manual SQL)
     - rotating Clerk keys (invalidates all sessions)
     - rotating the Anthropic key

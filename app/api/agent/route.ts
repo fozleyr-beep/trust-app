@@ -1,4 +1,4 @@
-import { anthropic, MODEL, SYSTEM_PROMPT } from "@/lib/ai/client";
+import { anthropic, anthropicModel, SYSTEM_PROMPT } from "@/lib/ai/client";
 import { requireDbUser } from "@/lib/auth/current-user";
 import { parseBody } from "@/lib/api/parse";
 import { AgentRequest } from "@/lib/api/schemas";
@@ -36,8 +36,9 @@ export async function POST(req: Request) {
   if (parsed.error) return parsed.error;
 
   const startedAt = Date.now();
+  const model = anthropicModel();
   const stream = await anthropic().messages.stream({
-    model: MODEL,
+    model,
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
     messages: parsed.data.messages,
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
         controller.close();
         log.info("agent.completed", {
           userId: me.id,
-          model: MODEL,
+          model,
           turns: parsed.data.messages.length,
           inputTokens,
           outputTokens,
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
       } catch (err) {
         log.error("agent.failed", {
           userId: me.id,
-          model: MODEL,
+          model,
           latencyMs: Date.now() - startedAt,
           error: err instanceof Error ? err.message : String(err),
         });

@@ -21,13 +21,13 @@ export default function NewThreadPage() {
             autoComplete="off"
             rows={3}
             placeholder="alice@example.com, bob@example.com"
-            className="mt-2 block w-full resize-none border border-[var(--color-ink)] bg-transparent px-4 py-3 text-[1.05rem] outline-none focus:border-[var(--color-accent)]"
+            className="mt-2 block w-full resize-none border border-[var(--color-ink)] bg-transparent px-4 py-3 text-[1.05rem] outline-none focus:border-[var(--color-ink-soft)]"
           />
         </label>
 
         <button
           type="submit"
-          className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-[var(--color-paper)] bg-[var(--color-ink)] px-5 py-3 hover:bg-[var(--color-accent)]"
+          className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-[var(--color-paper)] bg-[var(--color-ink)] px-5 py-3 hover:bg-[var(--color-ink-soft)]"
         >
           Start thread
         </button>

@@ -64,6 +64,17 @@ which fails the build if any file under `app/api/agent/` references the
 
 ---
 
+## Product operating model
+
+Sakinah's launch direction is zero human operator from customer onboarding
+through payment and service delivery. Named AI agents can verify, introduce,
+mediate, bill, guardrail, and close the journey; Sakinah staff should not act as
+intake coordinators, matchmakers, moderators, sales reps, or service operators.
+Where code does not yet enforce that boundary, the public surface must label it
+as a launch gate rather than a live guarantee.
+
+---
+
 ## Encryption model — locked
 
 ### Per-device fanout
@@ -204,8 +215,9 @@ which fails the build if any file under `app/api/agent/` references the
   `'strict-dynamic'` + per-request nonce (see `middleware.ts`). Anyone
   trying to drop in Segment / GA / Hotjar gets blocked at the browser
   unless they explicitly amend the allowlist.
-- Tokens (colors, fonts) currently **placeholders** in `app/globals.css`
-  — see [§ Open](#open-decisions) #1.
+- Visual tokens are now Sakinah **Sand & Sage** in `app/globals.css`: cream,
+  cream-2, ink scale, sage reserved for trust state, serif italic wordmark,
+  sans body copy, and mono tabular numbers.
 
 ---
 

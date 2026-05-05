@@ -83,7 +83,7 @@ export default async function SettingsPage() {
 
       <p className="mt-20 text-sm">
         <Link
-          className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
+          className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-ink)]"
           href={"/app" as Route}
         >
           ← Back

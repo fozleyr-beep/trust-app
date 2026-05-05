@@ -125,7 +125,10 @@ both first-prod and CI.
    | `DATABASE_URL` | `postgresql://…?sslmode=require` | Neon |
    | `ANTHROPIC_API_KEY` | `sk-ant-…` | Anthropic console |
 
-   Leave `CLERK_WEBHOOK_SECRET` blank for now — added in step 5.
+   Vercel OIDC is enabled for this project, so production can also use Vercel
+   AI Gateway without a raw Anthropic key. Keep `ANTHROPIC_API_KEY` if you want
+   direct Anthropic billing/control. Leave `CLERK_WEBHOOK_SECRET` blank unless
+   you configure the optional webhook in step 5.
 
 7. Click **Deploy**. First build takes ~2 minutes.
 
@@ -134,12 +137,12 @@ Save it — you need it in the next step.
 
 ---
 
-## 5. Clerk webhook (≈2 min)
+## 5. Clerk webhook (optional, ≈2 min)
 
 The webhook mirrors Clerk users into your Neon `users` table on
-`user.created` / `user.updated` / `user.deleted`. Without it, the lazy backfill
-in `lib/auth/current-user.ts` covers most cases, but the webhook is the
-canonical sync.
+`user.created` / `user.updated` / `user.deleted`. The lazy backfill in
+`lib/auth/current-user.ts` is the v1 path for signed-in users; add the webhook
+when you want canonical delete/update sync from Clerk.
 
 1. Back in Clerk dashboard → **Webhooks** → **Add Endpoint**
 2. **Endpoint URL:** `https://<your-vercel-domain>/api/webhooks/clerk`
@@ -169,8 +172,9 @@ End-to-end on the production domain:
    counts logged on completion (check Vercel logs).
 7. **`/api/health`** returns `{ ok: true, ts: <iso> }`.
 
-If `user.created` mirroring is set up correctly, the Clerk webhook entry
-should show ≥1 successful delivery for your test account.
+If the optional Clerk webhook is set up, its entry should show ≥1 successful
+delivery for your test account. Without it, look for `auth.backfilled` in
+Vercel logs after the first signed-in request.
 
 ---
 
@@ -195,10 +199,9 @@ sharing the URL widely:
       (`middleware.ts`).
 - [ ] **Move Clerk to live keys** (currently `pk_test_…` / `sk_test_…`).
       Replace both env vars in Vercel. Redeploy.
-- [ ] **Anthropic billing**. Verify your API key has a paid plan attached if
-      you expect real traffic; otherwise the rate limit (6/min/user) plus
-      Anthropic's per-key cap is your first line of defense against runaway
-      spend.
+- [ ] **Assistant billing**. Verify the active path (direct Anthropic key or
+      Vercel AI Gateway) has spend controls attached. The in-app rate limit
+      is 6/min/user.
 - [ ] **Vercel Pro** if traffic exceeds Hobby limits. Hobby is fine for
       personal / portfolio scale.
 
@@ -214,8 +217,9 @@ will be in the output.
 forgot to redeploy after adding it. Check Clerk → Webhooks → recent
 deliveries.
 
-**`POST /api/agent` returns 500** — `ANTHROPIC_API_KEY` missing or invalid in
-Vercel. Check Vercel → Settings → Environment Variables. Redeploy after fix.
+**`POST /api/agent` returns 500** — no assistant provider is available, or the
+active key was rejected. Check `ANTHROPIC_API_KEY`; if using Vercel AI Gateway,
+confirm project OIDC is enabled and the function has `VERCEL_OIDC_TOKEN`.
 
 **`db:push` errors with "permission denied for schema public"** — Neon's
 default role usually has it, but if you created the role manually you may

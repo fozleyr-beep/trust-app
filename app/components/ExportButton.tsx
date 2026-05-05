@@ -132,7 +132,7 @@ export function ExportButton() {
       <button
         onClick={handleExport}
         disabled={busy}
-        className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-[var(--color-paper)] bg-[var(--color-ink)] px-5 py-3 disabled:opacity-50 hover:enabled:bg-[var(--color-accent)]"
+        className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-[var(--color-paper)] bg-[var(--color-ink)] px-5 py-3 disabled:opacity-50 hover:enabled:bg-[var(--color-ink-soft)]"
       >
         {busy ? "Exporting…" : "Export plaintext history"}
       </button>

@@ -3,8 +3,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trust",
-  description: "How we handle your messages, your data, and the AI agent.",
+  title: "Sakinah.family",
+  description:
+    "A quiet matrimonial trust platform for Muslim families, with named agents and encrypted rooms.",
   // Default deny for the whole site. /trust explicitly opts back in via
   // its own `robots: { index: true, follow: true }` export. Sign-in,
   // sign-up, /app/*, and /api/* therefore stay out of search indexes by
@@ -18,15 +19,19 @@ const clerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
 );
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const tree = (
-    <html lang="en">
+    <html lang="en" dir="ltr">
       <body>{children}</body>
     </html>
   );
-  return clerkConfigured ? <ClerkProvider>{tree}</ClerkProvider> : tree;
+  return clerkConfigured ? (
+    <ClerkProvider dynamic>{tree}</ClerkProvider>
+  ) : (
+    tree
+  );
 }

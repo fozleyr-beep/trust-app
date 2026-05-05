@@ -49,7 +49,7 @@ export default async function ThreadPage({
 
       <p className="mt-12 text-sm">
         <Link
-          className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
+          className="underline decoration-from-font underline-offset-4 hover:text-[var(--color-ink)]"
           href={"/app/threads" as Route}
         >
           ← Back to threads

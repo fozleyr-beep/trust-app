@@ -22,7 +22,8 @@ If you are picking this project up cold, read in this order:
 cd trust-app
 cp .env.example .env.local
 # fill in: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY,
-#         CLERK_WEBHOOK_SECRET, DATABASE_URL, ANTHROPIC_API_KEY
+#         DATABASE_URL
+# optional local assistant probe: AI_GATEWAY_API_KEY or ANTHROPIC_API_KEY
 npm install
 npm run db:push       # one-time, creates the 5 tables in Neon
 npm run doctor        # verify env + connectivity (red lines = blockers)
@@ -34,11 +35,12 @@ npm run dev           # http://localhost:3000
 
 Required accounts for a real run:
 
-- **Clerk** — for auth. Get a publishable + secret key. Set up a webhook
-  pointing to `<your-domain>/api/webhooks/clerk` and copy the signing
-  secret into `CLERK_WEBHOOK_SECRET`.
+- **Clerk** — for auth. Get a publishable + secret key. The webhook at
+  `<your-domain>/api/webhooks/clerk` is optional for canonical user sync;
+  lazy-backfill covers signed-in users in v1.
 - **Neon** — for Postgres. Get a `DATABASE_URL`.
-- **Anthropic** — for the assistant. Get an `ANTHROPIC_API_KEY`.
+- **Assistant provider** — direct Anthropic via `ANTHROPIC_API_KEY`, or Vercel
+  AI Gateway via project OIDC in production.
 
 The build passes without any of the above; the runtime requires them.
 
@@ -78,14 +80,13 @@ Each PR landed with `npm run typecheck && npm test && npm run build` clean.
 | 24 | `ea75332` | MIT `LICENSE` + Dependabot config. |
 | 25 | `a471a86` | Extract & test the bundle-budget parser. |
 | 26 | `65baf98` | Sync `CLAUDE_CODE_PROMPT.md` with PR-12..25 reality. |
-| 27 | (in flight) | Live deploy. Production URL: **https://trust-app-three.vercel.app**. Vercel project `fozleyr-beeps-projects/trust-app` connected to GitHub, 7 of 9 env vars set, schema applied to Neon (`odd-scene-06932368` in `aws-us-east-1`), Clerk dev app `app_3DGyGaZc5v47bXDEQiYZK1zIf1k` with email-only sign-in. Public surface (`/trust`, `/sign-in`, `/api/health`) verified 200. Auth-protected redirect (`/app` → `/sign-in?redirect_url=…`) verified in browser. |
+| 27 | (in flight) | Live deploy. Production URL: **https://trust-app-three.vercel.app**. Vercel project `fozleyr-beeps-projects/trust-app` connected to GitHub, 8 production env vars set, schema applied to Neon (`odd-scene-06932368` in `aws-us-east-1`), Clerk dev app `app_3DGyGaZc5v47bXDEQiYZK1zIf1k` with email-only sign-in. Public surface (`/trust`, `/sign-in`, `/api/health`) verified 200. Auth-protected redirect (`/app` → `/sign-in?redirect_url=…`) verified in browser. |
 
 ### Outstanding (PR-27 follow-ups)
 
 | Item | Why |
 |---|---|
-| Add `ANTHROPIC_API_KEY` to Vercel + redeploy | `/api/agent` returns 500 without it; rest of app works |
-| Add Clerk webhook for `user.created` / `user.updated` / `user.deleted` + set `CLERK_WEBHOOK_SECRET` in Vercel | Lazy-backfill in `lib/auth/current-user.ts` covers v1, but the webhook is the canonical sync. Setup blocked on Svix iframe inside Clerk dashboard not accepting page-level clicks; do via Clerk UI manually |
+| Optional: add Clerk webhook for `user.created` / `user.updated` / `user.deleted` + set `CLERK_WEBHOOK_SECRET` in Vercel | Lazy-backfill in `lib/auth/current-user.ts` covers v1; webhook is only for canonical delete/update sync |
 
 ### Possible follow-ups (none ordered, none blocked on each other)
 

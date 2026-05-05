@@ -5,6 +5,9 @@ import type { NextRequest } from "next/server";
 const isPublic = createRouteMatcher([
   "/",
   "/trust",
+  "/walkthrough",
+  "/privacy",
+  "/terms",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/health",
@@ -25,9 +28,11 @@ function makeNonce(): string {
 // Turnstile, which Clerk uses for bot challenges. If a prod Clerk host
 // differs, add it here.
 function buildCsp(nonce: string): string {
+  const devScriptSource =
+    process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
   const directives: string[] = [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://*.clerk.accounts.dev https://challenges.cloudflare.com`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${devScriptSource} https://*.clerk.accounts.dev https://challenges.cloudflare.com`,
     // Next + Tailwind v4 inline some styles. There is no nonce path for
     // styles in Next.js today; 'unsafe-inline' for styles is the standard
     // tradeoff. Style-injection has a much smaller blast radius than

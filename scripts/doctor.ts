@@ -22,7 +22,6 @@ const REQUIRED = [
   "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
   "CLERK_SECRET_KEY",
   "DATABASE_URL",
-  "ANTHROPIC_API_KEY",
 ] as const;
 
 const RECOMMENDED = [
@@ -47,31 +46,76 @@ function envCheck(name: string, required: boolean): Check {
   };
 }
 
-async function checkAnthropic(): Promise<Check> {
-  if (!process.env.ANTHROPIC_API_KEY) {
+function assistantEnvCheck(): Check {
+  if (process.env.ANTHROPIC_API_KEY) {
     return {
-      name: "anthropic: probe",
-      status: "fail",
-      detail: "skipped (ANTHROPIC_API_KEY not set)",
+      name: "env: assistant provider",
+      status: "ok",
+      detail: "ANTHROPIC_API_KEY set",
     };
   }
+  if (process.env.AI_GATEWAY_API_KEY) {
+    return {
+      name: "env: assistant provider",
+      status: "ok",
+      detail: "AI_GATEWAY_API_KEY set",
+    };
+  }
+  if (process.env.VERCEL_OIDC_TOKEN) {
+    return {
+      name: "env: assistant provider",
+      status: "ok",
+      detail: "VERCEL_OIDC_TOKEN set",
+    };
+  }
+  return {
+    name: "env: assistant provider",
+    status: "warn",
+    detail:
+      "missing locally; set AI_GATEWAY_API_KEY / ANTHROPIC_API_KEY, or rely on Vercel OIDC in production",
+  };
+}
+
+async function checkAnthropic(): Promise<Check> {
+  const gatewayKey =
+    process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN;
+  const directKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = gatewayKey ?? directKey;
+
+  if (!apiKey) {
+    return {
+      name: "assistant provider",
+      status: "warn",
+      detail:
+        "skipped locally; production can use Vercel OIDC, or set AI_GATEWAY_API_KEY / ANTHROPIC_API_KEY",
+    };
+  }
+
+  const model = gatewayKey
+    ? (process.env.AI_GATEWAY_MODEL ?? "anthropic/claude-sonnet-4.5")
+    : (process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5");
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const client = new Anthropic({
+      apiKey,
+      baseURL: gatewayKey
+        ? (process.env.AI_GATEWAY_BASE_URL ?? "https://ai-gateway.vercel.sh")
+        : undefined,
+    });
     const resp = await client.messages.create({
-      model: "claude-sonnet-4-5",
+      model,
       max_tokens: 8,
       messages: [{ role: "user", content: "ping" }],
     });
     const tokens = resp.usage?.output_tokens ?? 0;
     return {
-      name: "anthropic: probe",
+      name: "assistant provider",
       status: "ok",
-      detail: `claude-sonnet-4-5 reachable, ${tokens} output tokens`,
+      detail: `${model} reachable, ${tokens} output tokens`,
     };
   } catch (err) {
     return {
-      name: "anthropic: probe",
+      name: "assistant provider",
       status: "fail",
       detail: err instanceof Error ? err.message : String(err),
     };
@@ -222,6 +266,7 @@ async function main() {
 
   // Phase 1: env vars (synchronous)
   for (const name of REQUIRED) checks.push(envCheck(name, true));
+  checks.push(assistantEnvCheck());
   for (const name of RECOMMENDED) checks.push(envCheck(name, false));
 
   // Phase 2: live probes (parallel)

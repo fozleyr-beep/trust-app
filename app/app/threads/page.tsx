@@ -21,7 +21,7 @@ export default async function ThreadsPage() {
       <div className="mb-10 flex items-baseline justify-between">
         <h1 className="font-serif text-[2rem] leading-[1.1]">Threads</h1>
         <Link
-          className="text-sm underline decoration-from-font underline-offset-4 hover:text-[var(--color-accent)]"
+          className="text-sm underline decoration-from-font underline-offset-4 hover:text-[var(--color-ink)]"
           href={"/app/threads/new" as Route}
         >
           + New thread
@@ -35,7 +35,7 @@ export default async function ThreadsPage() {
           </p>
           <p className="mt-4">
             <Link
-              className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-[var(--color-paper)] bg-[var(--color-ink)] px-5 py-3 hover:bg-[var(--color-accent)]"
+              className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-[var(--color-paper)] bg-[var(--color-ink)] px-5 py-3 hover:bg-[var(--color-ink-soft)]"
               href={"/app/threads/new" as Route}
             >
               Start the first one
@@ -47,7 +47,7 @@ export default async function ThreadsPage() {
           {threads.map((t) => (
             <li key={t.id} className="py-5">
               <Link
-                className="block hover:text-[var(--color-accent)]"
+                className="block hover:text-[var(--color-ink)]"
                 href={`/app/threads/${t.id}` as Route}
               >
                 <p className="font-serif text-[1.1rem]">

@@ -21,6 +21,11 @@ session:
   starting_state: PR-25 on main, no GitHub remote, no prod deploy
   ending_state: 35 commits on public GitHub, full prod stack live
 
+superseded_after_handoff:
+  - "2026-05-05 Codex: ANTHROPIC_API_KEY was added locally and to Vercel production; local doctor now reaches Claude."
+  - "2026-05-05 Codex: Vercel project OIDC is enabled and lib/ai/client.ts can use Vercel AI Gateway when VERCEL_OIDC_TOKEN is present."
+  - "2026-05-05 Codex: CLERK_WEBHOOK_SECRET is optional for canonical Clerk delete/update sync; lazy-backfill remains the v1 path for signed-in users."
+
 project:
   name: trust-app
   one_line: "End-to-end encrypted messaging with a Claude assistant. /trust contract documents what we hold and what we don't."
@@ -204,7 +209,7 @@ next_agent_quickstart:
   - 2. Read in this order: HANDOFF-pr27.yaml (this file), CLAUDE_CODE_PROMPT.md, DECISIONS.md, DEPLOY.md, handoff.yaml
   - 3. git fetch && git status   # confirm in sync with origin/main (HEAD = fc8cec7 or later)
   - 4. set -a; source .env.local; set +a
-  - 5. npm run doctor             # 8/9 green expected (ANTHROPIC_API_KEY missing)
+  - 5. npm run doctor             # 0 failures expected; webhook secret may be optional
   - 6. npm run typecheck && npm test && npm run build  # all green
   - 7. To finish PR-27 follow-ups, see `outstanding:` section above
 
