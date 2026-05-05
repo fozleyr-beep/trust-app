@@ -18,7 +18,7 @@
     },
     "plugins": ["expo-secure-store", "@clerk/expo"],
     "extra": {
-      "apiBaseUrl": "https://trust-app-three.vercel.app"
+      "apiBaseUrl": "https://sakinah.family"
     }
   }
 }

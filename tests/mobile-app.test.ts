@@ -163,6 +163,6 @@ describe("mobile app foundation", () => {
     const app = read("mobile/app.json");
     expect(domain).toContain("sakinah.family/api/health");
     expect(domain).toContain("returns `200`");
-    expect(app).toContain("https://trust-app-three.vercel.app");
+    expect(app).toContain("https://sakinah.family");
   });
 });

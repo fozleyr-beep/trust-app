@@ -2,16 +2,14 @@
 
 ## Current Verified State
 
-- `https://trust-app-three.vercel.app/api/health` returns `200`.
 - `https://sakinah.family/` returns `200`.
-- `https://sakinah.family/api/health` returns `404`, so the root domain is not
-  serving this Next.js app yet.
+- `https://sakinah.family/api/health` returns `200`.
+- `https://www.sakinah.family/api/health` returns `200`.
 
 ## Pick
 
-9/10 [PICK] - Keep mobile `extra.apiBaseUrl` on
-`https://trust-app-three.vercel.app` until `sakinah.family/api/health` returns
-`200`, then switch the app config and Play listing URLs together.
+9/10 [PICK] - Use `https://sakinah.family` as the mobile API base and Play
+listing URL now that the domain serves this app.
 
 ## Alternatives
 
@@ -23,8 +21,8 @@
 
 ## Switch Gate
 
-Only change `mobile/app.json`, `mobile/store/play-listing.json`, and public
-listing URLs to `https://sakinah.family` after:
+Keep `mobile/app.json`, `mobile/store/play-listing.json`, and public listing
+URLs on `https://sakinah.family` while:
 
 ```bash
 curl -L -sS -o /dev/null -w '%{http_code}\n' https://sakinah.family/api/health

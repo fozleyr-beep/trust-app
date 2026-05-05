@@ -48,7 +48,7 @@ function checkDomain(): Check {
   }
   return {
     name: "api domain",
-    status: "warn",
+    status: "fail",
     detail: `currently ${apiBaseUrl ?? "unset"}; switch after domain points here`,
   };
 }

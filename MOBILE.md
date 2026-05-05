@@ -42,8 +42,5 @@ for Play Console, and leaves iOS open when the Apple Developer account is ready.
 
 1. Generate final Play artwork and screenshots from the mobile app.
 2. Run EAS `build:configure` after Expo login to attach a project id.
-3. Move the API base URL to `https://sakinah.family` once the domain points at
-   this app.
-
-Current domain gate: `sakinah.family/api/health` must return `200`; it is not
-the API host yet.
+3. Keep `sakinah.family/api/health` green after future deploys; mobile now uses
+   `https://sakinah.family`.
