@@ -73,6 +73,13 @@ intake coordinators, matchmakers, moderators, sales reps, or service operators.
 Where code does not yet enforce that boundary, the public surface must label it
 as a launch gate rather than a live guarantee.
 
+The in-app route map now follows that operating model:
+`/app/onboarding`, `/app/verification`, `/app/billing`, `/app/matches`,
+`/app/salaam`, `/app/family`, then encrypted rooms in `/app/threads`.
+Stripe Checkout is allowed without a new product decision because it supports
+self-serve payment; it must stay launch-gated until `STRIPE_SECRET_KEY`,
+`STRIPE_PRICE_ID`, and webhook handling are configured.
+
 ---
 
 ## Encryption model — locked

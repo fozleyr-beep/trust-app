@@ -155,7 +155,22 @@ when you want canonical delete/update sync from Clerk.
 
 ---
 
-## 6. Smoke test (≈5 min)
+## 6. Stripe billing gate (optional)
+
+`/app/billing` is wired to hosted Stripe Checkout without adding a package. It
+stays launch-gated until these production env vars exist:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PRICE_ID`
+- `STRIPE_WEBHOOK_SECRET`
+
+Without the first two, `POST /api/billing/checkout` returns HTTP 501 with a
+clear launch-gate message. Before public payment traffic, add webhook-confirmed
+entitlement storage so paid access unlocks matching without staff action.
+
+---
+
+## 7. Smoke test (≈5 min)
 
 End-to-end on the production domain:
 
@@ -164,13 +179,16 @@ End-to-end on the production domain:
 2. **`/sign-up`** — create a real account with a real email. Confirm email.
 3. After sign-up redirect, you should land on `/app`. The header shows your
    email; the device-bootstrap component generates an X25519 keypair.
-4. **`/app/settings`** — fingerprint shown. Rotate the key once; old
+4. **`/app/onboarding` → `/app/verification` → `/app/billing` →
+   `/app/matches` → `/app/salaam` → `/app/family`** — each route loads behind
+   auth and marks provider gaps as launch gates, not live claims.
+5. **`/app/settings`** — fingerprint shown. Rotate the key once; old
    fingerprint still listed as a prior generation.
-5. **`/app/threads/new`** — start a thread with your own email (1:1 with
+6. **`/app/threads/new`** — start a thread with your own email (1:1 with
    yourself works). Send a message. Verify it appears in the stream.
-6. **`/app/agent`** — ask the assistant a question. Stream renders. Token
+7. **`/app/agent`** — ask the assistant a question. Stream renders. Token
    counts logged on completion (check Vercel logs).
-7. **`/api/health`** returns `{ ok: true, ts: <iso> }`.
+8. **`/api/health`** returns `{ ok: true, ts: <iso> }`.
 
 If the optional Clerk webhook is set up, its entry should show ≥1 successful
 delivery for your test account. Without it, look for `auth.backfilled` in
@@ -178,7 +196,7 @@ Vercel logs after the first signed-in request.
 
 ---
 
-## 7. Observability sanity check
+## 8. Observability sanity check
 
 - **Vercel → Logs** filters by route. Look for the structured events from
   `lib/log.ts`: `auth.backfilled`, `webhook.clerk.received`,

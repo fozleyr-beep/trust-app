@@ -9,6 +9,7 @@ import {
   TrustChip,
   Wordmark,
 } from "@/app/components/SakinahPrimitives";
+import { AgentAuditRail, ServiceStageGrid } from "@/app/components/ServiceFlow";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +38,21 @@ export default async function AppPage() {
         .
       </h1>
       <p className="mt-5 max-w-2xl leading-7 text-[var(--color-ink-soft)]">
-        The live app currently ships encrypted rooms, a separate assistant, and
-        device-level trust controls. Hafiz verification, photo gates, and wali
-        observer routes remain launch gates.
+        The live app now has the zero-human service path mapped end to end:
+        onboarding, verification, billing, matching, salaam, family observers,
+        encrypted rooms, assistant, and device-level trust controls. Provider
+        wiring remains clearly marked where it is still a launch gate.
       </p>
+
+      <section className="mt-10 grid gap-6 lg:grid-cols-[1fr_0.38fr]">
+        <div>
+          <p className="mb-4 font-mono text-[0.68rem] uppercase tracking-[0.16em] text-[var(--color-ink-faint)]">
+            Zero-human service path
+          </p>
+          <ServiceStageGrid />
+        </div>
+        <AgentAuditRail />
+      </section>
 
       <div className="mt-10 grid gap-4 md:grid-cols-2">
         <SurfaceLink

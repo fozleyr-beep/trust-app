@@ -28,6 +28,9 @@ const RECOMMENDED = [
   "CLERK_WEBHOOK_SECRET",
   "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
   "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_PRICE_ID",
+  "STRIPE_WEBHOOK_SECRET",
 ] as const;
 
 function envCheck(name: string, required: boolean): Check {

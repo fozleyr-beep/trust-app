@@ -2,8 +2,10 @@
 
 A private Sakinah.family build inside the `trust-app` repo: end-to-end
 encrypted rooms with people, a separate Claude assistant that cannot read those
-messages, and a Sand & Sage public trust surface based on the Sakinah design
-archive.
+messages, self-serve Stripe-ready billing, and a Sand & Sage public trust
+surface based on the Sakinah design archive. The product direction is
+zero-human-operator: onboarding, verification, payment, matching, salaam,
+observer access, and handoff should run through named agents, not staff.
 
 Stack:
 
@@ -30,6 +32,7 @@ cp .env.example .env.local
 # fill: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY,
 #       DATABASE_URL
 # optional local assistant probe: AI_GATEWAY_API_KEY or ANTHROPIC_API_KEY
+# optional self-serve billing: STRIPE_SECRET_KEY, STRIPE_PRICE_ID
 npm install
 npm run db:push     # one-time — creates the 5 tables in Neon
 npm run doctor      # preflight: env + connectivity probes
@@ -46,7 +49,10 @@ npm run dev         # http://localhost:3000
 5. Run migrations: `DATABASE_URL=… npm run db:push`.
 6. Assistant calls use Vercel AI Gateway through the project OIDC token in
    production. No raw Anthropic key is required on Vercel.
-7. Optional: in Clerk dashboard → Webhooks, add an endpoint pointing to
+7. Optional payments: add `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, and
+   `STRIPE_WEBHOOK_SECRET` before making `/app/billing` public as live payment.
+   Without them, the billing API returns a clear launch-gate response.
+8. Optional: in Clerk dashboard → Webhooks, add an endpoint pointing to
    `https://<your-domain>/api/webhooks/clerk`. Copy the signing secret into
    `CLERK_WEBHOOK_SECRET`. Lazy backfill still covers signed-in users without
    the webhook.
@@ -62,11 +68,18 @@ app/
   sign-up/[[...sign-up]]/
   app/                       # post-auth surfaces
     page.tsx                 # dashboard
+    onboarding/              # Hafiz/Watim intake path, no coordinator call
+    verification/            # Hafiz verification launch gates
+    billing/                 # self-serve Stripe Checkout surface
+    matches/                 # Watim shortlist, no swipe feed
+    salaam/                  # Adil consent gate
+    family/                  # read-only observer model
     threads/                 # E2E messaging
     agent/                   # Claude assistant (separate, not E2E)
     settings/                # fingerprint, rotate, export, delete
   api/
     agent/                   # streaming Anthropic, rate-limited
+    billing/checkout/        # Stripe Checkout if env configured
     device-keys/             # POST register / rotate
     sender-keys/             # POST fetch peer pubkeys
     threads/[id]/messages/   # POST fanout, GET decrypt-list
