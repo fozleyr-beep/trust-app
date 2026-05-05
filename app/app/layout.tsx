@@ -5,12 +5,18 @@ import { Wordmark } from "@/app/components/SakinahPrimitives";
 
 const platformNav = [
   { href: "/app", label: "Command" },
+  { href: "/app/mobile-flow", label: "Mobile flow" },
   { href: "/app/onboarding", label: "Onboarding" },
   { href: "/app/verification", label: "Verification" },
+  { href: "/app/discovery", label: "Discovery" },
   { href: "/app/billing", label: "Billing" },
   { href: "/app/matches", label: "Matches" },
   { href: "/app/salaam", label: "Salaam" },
   { href: "/app/family", label: "Family" },
+  { href: "/app/wali", label: "Wali" },
+  { href: "/app/sabr", label: "Sabr ops" },
+  { href: "/app/economics", label: "Economics" },
+  { href: "/app/engineering", label: "Build plan" },
   { href: "/app/threads", label: "Rooms" },
   { href: "/app/agent", label: "Assistant" },
   { href: "/app/settings", label: "Settings" },

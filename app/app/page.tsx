@@ -101,6 +101,12 @@ export default async function AppPage() {
 
       <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SurfaceLink
+          eyebrow="Prototype"
+          href={"/app/mobile-flow" as Route}
+          title="Mobile flow"
+          body="Click through landing, intake, discovery, salaam, and encrypted room."
+        />
+        <SurfaceLink
           eyebrow="Start"
           href={"/app/onboarding" as Route}
           title="Service profile"
@@ -108,9 +114,9 @@ export default async function AppPage() {
         />
         <SurfaceLink
           eyebrow="Watim"
-          href={"/app/matches" as Route}
-          title="Shortlist"
-          body="Generate or review bounded suggestions with visible reasons."
+          href={"/app/discovery" as Route}
+          title="Discovery filters"
+          body="Set hard gates and soft preferences without creating a browse feed."
         />
         <SurfaceLink
           eyebrow="Adil"
@@ -119,10 +125,28 @@ export default async function AppPage() {
           body="Accept, decline, or wait without opening a room prematurely."
         />
         <SurfaceLink
-          eyebrow="Settings"
-          href={"/app/settings" as Route}
-          title="Agent controls"
-          body="Review permissions, audit logs, device keys, export, and deletion."
+          eyebrow="Family"
+          href={"/app/wali" as Route}
+          title="Wali view"
+          body="See what observers can witness and what they cannot control."
+        />
+        <SurfaceLink
+          eyebrow="Sabr"
+          href={"/app/sabr" as Route}
+          title="Safety console"
+          body="Pressure, report, and observer signals without plaintext access."
+        />
+        <SurfaceLink
+          eyebrow="Model"
+          href={"/app/economics" as Route}
+          title="Economics"
+          body="Draft sustainability model with web billing and Android policy gates."
+        />
+        <SurfaceLink
+          eyebrow="Build"
+          href={"/app/engineering" as Route}
+          title="Contracts"
+          body="Schemas, API contracts, agent prompts, and launch gates."
         />
       </section>
 

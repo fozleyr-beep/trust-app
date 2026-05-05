@@ -12,10 +12,16 @@ describe("zero-human service path", () => {
   const routes = [
     "app/app/onboarding/page.tsx",
     "app/app/verification/page.tsx",
+    "app/app/mobile-flow/page.tsx",
+    "app/app/discovery/page.tsx",
     "app/app/billing/page.tsx",
     "app/app/matches/page.tsx",
     "app/app/salaam/page.tsx",
     "app/app/family/page.tsx",
+    "app/app/wali/page.tsx",
+    "app/app/sabr/page.tsx",
+    "app/app/economics/page.tsx",
+    "app/app/engineering/page.tsx",
     "app/app/layout.tsx",
     "app/api/agents/actions/route.ts",
     "app/api/service/audit/route.ts",
@@ -44,13 +50,46 @@ describe("zero-human service path", () => {
     for (const href of [
       "/app/onboarding",
       "/app/verification",
+      "/app/mobile-flow",
+      "/app/discovery",
       "/app/billing",
       "/app/matches",
       "/app/salaam",
       "/app/family",
+      "/app/wali",
+      "/app/sabr",
+      "/app/economics",
+      "/app/engineering",
     ]) {
-      expect(`${serviceFlow}\n${registry}`).toContain(href);
+      expect(`${dashboard}\n${platformLayout}\n${serviceFlow}\n${registry}`).toContain(
+        href,
+      );
     }
+  });
+
+  it("closes the seven platform gaps as first-class surfaces", () => {
+    const mobileFlow = read("app/app/mobile-flow/page.tsx");
+    const discovery = read("app/app/discovery/page.tsx");
+    const wali = read("app/app/wali/page.tsx");
+    const sabr = read("app/app/sabr/page.tsx");
+    const economics = read("app/app/economics/page.tsx");
+    const engineering = read("app/app/engineering/page.tsx");
+    const controls = read("app/components/PlatformPrototypeControls.tsx");
+    expect(controls).toContain("MobileFlowPrototype");
+    expect(controls).toContain("DiscoveryFilterWorkbench");
+    expect(mobileFlow).toContain("trust, intake");
+    expect(discovery).toContain("Hard gates");
+    expect(discovery).toContain("Weekly cap");
+    expect(wali).toContain("observer mode");
+    expect(wali).toContain("cannot post");
+    expect(sabr).toContain("Refresh Sabr state");
+    expect(sabr).toContain("not decrypted room content");
+    expect(economics).toContain("sustainability design");
+    expect(economics).toContain("Google Play Billing");
+    expect(engineering).toContain("ENGINEERING_PLAN.md");
+    expect(read("public/ENGINEERING_PLAN.md")).toContain("schema");
+    expect(read("public/API_CONTRACTS.md")).toContain("/api/service/audit");
+    expect(read("public/AGENT_PROMPTS.md")).toContain("Hafiz");
   });
 
   it("keeps launch-gate pages operational instead of static copy", () => {
