@@ -112,4 +112,17 @@ describe("mobile app foundation", () => {
     expect(messaging).toContain("decryptMobileMessage");
     expect(app).toContain("DeviceKeyCard");
   });
+
+  it("wires a mobile encrypted rooms shell to the messaging APIs", () => {
+    const app = read("mobile/App.tsx");
+    const api = read("mobile/src/messaging/api.ts");
+    expect(app).toContain("RoomsTab");
+    expect(app).toContain("Load rooms");
+    expect(app).toContain("Send encrypted");
+    expect(api).toContain("/api/me/threads");
+    expect(api).toContain("/recipient-keys");
+    expect(api).toContain("/messages");
+    expect(api).toContain("sendEncryptedMobileMessage");
+    expect(api).toContain("encryptMobileMessage");
+  });
 });

@@ -40,8 +40,7 @@ for Play Console, and leaves iOS open when the Apple Developer account is ready.
 
 ## Next slices
 
-1. Mobile thread list/detail wiring on top of the native crypto helpers.
-2. Android payment policy decision and implementation.
-3. Play Store assets and internal testing release.
-4. Move the API base URL to `https://sakinah.family` once the domain points at
+1. Android payment policy decision and implementation.
+2. Play Store assets and internal testing release.
+3. Move the API base URL to `https://sakinah.family` once the domain points at
    this app.

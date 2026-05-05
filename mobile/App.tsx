@@ -26,6 +26,13 @@ import {
   rotateMobileDeviceKey,
 } from "./src/crypto/deviceKeys";
 import {
+  listMobileMessages,
+  listMobileThreads,
+  sendEncryptedMobileMessage,
+  type MobileMessageEnvelope,
+  type MobileThread,
+} from "./src/messaging/api";
+import {
   agentActionBaselines,
   agentName,
   sakinahAgents,
@@ -51,7 +58,7 @@ const stateCopy: Record<AgentStageState, string> = {
   gate: "Launch gate",
 };
 
-type TabName = "start" | "path" | "agents" | "account" | "store";
+type TabName = "start" | "rooms" | "path" | "agents" | "account" | "store";
 type AuthMode = "sign-in" | "sign-up";
 type Intent = "seeker" | "family";
 
@@ -142,6 +149,11 @@ function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
             active={tab === "start"}
             onPress={() => setTab("start")}
           />
+          <Tab
+            label="Rooms"
+            active={tab === "rooms"}
+            onPress={() => setTab("rooms")}
+          />
           <Tab label="Path" active={tab === "path"} onPress={() => setTab("path")} />
           <Tab
             label="Agents"
@@ -166,6 +178,21 @@ function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
             <MatchReadinessCard />
           </View>
         )}
+
+        {tab === "rooms" &&
+          (nativeAuthReady ? (
+            <RoomsTab apiBaseUrl={apiBaseUrl} />
+          ) : (
+            <View style={styles.stack}>
+              <Card>
+                <Text style={styles.cardTitle}>Private rooms</Text>
+                <Text style={styles.cardBody}>
+                  Add the Expo Clerk key before mobile rooms can use the signed
+                  in session.
+                </Text>
+              </Card>
+            </View>
+          ))}
 
         {tab === "path" && (
           <View style={styles.stack}>
@@ -230,6 +257,140 @@ function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function RoomsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const [threads, setThreads] = useState<MobileThread[]>([]);
+  const [messages, setMessages] = useState<MobileMessageEnvelope[]>([]);
+  const [threadId, setThreadId] = useState("");
+  const [draft, setDraft] = useState("");
+  const [status, setStatus] = useState("Load rooms after sign-in.");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function loadThreads() {
+    setIsSubmitting(true);
+    try {
+      const result = await listMobileThreads({ apiBaseUrl, getToken });
+      setThreads(result);
+      setStatus(result.length > 0 ? "Rooms loaded." : "No private rooms yet.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not load rooms.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function loadMessages(targetThreadId = threadId.trim()) {
+    if (!targetThreadId) {
+      setStatus("Thread id is required.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const result = await listMobileMessages({
+        apiBaseUrl,
+        getToken,
+        threadId: targetThreadId,
+      });
+      setMessages(result);
+      setThreadId(targetThreadId);
+      setStatus(`${result.length} encrypted envelope(s) loaded.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not load messages.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function sendMessage() {
+    if (!threadId.trim() || !draft.trim()) {
+      setStatus("Thread id and message are required.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const result = await sendEncryptedMobileMessage({
+        apiBaseUrl,
+        getToken,
+        plaintext: draft.trim(),
+        threadId: threadId.trim(),
+      });
+      setDraft("");
+      setStatus(`Encrypted fanout written to ${result.written} device(s).`);
+      await loadMessages(threadId.trim());
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not send message.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (!isLoaded || !isSignedIn) {
+    return (
+      <View style={styles.stack}>
+        <Card>
+          <Text style={styles.cardTitle}>Private rooms</Text>
+          <Text style={styles.cardBody}>Sign in before opening encrypted rooms.</Text>
+        </Card>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.stack}>
+      <Card>
+        <Text style={styles.cardTitle}>Private rooms</Text>
+        <Text style={styles.cardBody}>{status}</Text>
+        <Pressable
+          disabled={isSubmitting}
+          style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
+          onPress={() => void loadThreads()}
+        >
+          <Text style={styles.primaryButtonText}>Load rooms</Text>
+        </Pressable>
+      </Card>
+      {threads.map((thread) => (
+        <Pressable
+          key={thread.id}
+          style={styles.threadRow}
+          onPress={() => void loadMessages(thread.id)}
+        >
+          <Text style={styles.ledgerAction}>{thread.id}</Text>
+          <Text style={styles.ledgerDetail}>{thread.createdAt}</Text>
+        </Pressable>
+      ))}
+      <Card>
+        <Text style={styles.cardTitle}>Encrypted send</Text>
+        <AuthInput
+          autoCapitalize="none"
+          onChangeText={setThreadId}
+          placeholder="Thread id"
+          value={threadId}
+        />
+        <AuthInput
+          onChangeText={setDraft}
+          placeholder="Message"
+          value={draft}
+        />
+        <Pressable
+          disabled={isSubmitting}
+          style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
+          onPress={() => void sendMessage()}
+        >
+          <Text style={styles.primaryButtonText}>Send encrypted</Text>
+        </Pressable>
+      </Card>
+      {messages.map((message) => (
+        <Card key={message.id}>
+          <Text style={styles.cardAgent}>{message.senderId}</Text>
+          <Text style={styles.cardBody}>
+            Ciphertext envelope received {message.sentAt}
+          </Text>
+        </Card>
+      ))}
+    </View>
   );
 }
 
@@ -1110,6 +1271,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: 6,
+  },
+  threadRow: {
+    backgroundColor: colors.surface,
+    borderColor: colors.rule,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 14,
   },
   arabic: {
     color: colors.inkMuted,
