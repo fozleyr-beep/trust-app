@@ -32,6 +32,7 @@ import {
   type MobileMessageEnvelope,
   type MobileThread,
 } from "./src/messaging/api";
+import { androidPaymentPolicy } from "./src/payments/policy";
 import {
   agentActionBaselines,
   agentName,
@@ -234,17 +235,25 @@ function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
         {tab === "store" && (
           <View style={styles.stack}>
             <Card>
+              <Text style={styles.cardTitle}>Service access</Text>
+              <Text style={styles.cardBody}>{androidPaymentPolicy.statusCopy}</Text>
+              <View style={styles.ledgerRow}>
+                <View style={styles.ledgerTopline}>
+                  <Text style={styles.cardAgent}>Android billing</Text>
+                  <Pill state="gate" />
+                </View>
+                <Text style={styles.ledgerAction}>Google Play Billing required</Text>
+                <Text style={styles.ledgerDetail}>
+                  Stripe remains web-only. Android must not route users to an
+                  external checkout until a documented policy exception applies.
+                </Text>
+              </View>
+            </Card>
+            <Card>
               <Text style={styles.cardTitle}>Android launch track</Text>
               <Text style={styles.cardBody}>
                 Expo/EAS is configured for internal APK testing and production
                 Android App Bundle builds. iOS uses the same codebase later.
-              </Text>
-            </Card>
-            <Card>
-              <Text style={styles.cardTitle}>Policy gates</Text>
-              <Text style={styles.cardBody}>
-                Account deletion, privacy policy, Data safety, payments, and
-                permission minimization must be handled before Play review.
               </Text>
             </Card>
             <Pressable

@@ -125,4 +125,15 @@ describe("mobile app foundation", () => {
     expect(api).toContain("sendEncryptedMobileMessage");
     expect(api).toContain("encryptMobileMessage");
   });
+
+  it("keeps Android payments conservative until Play Billing is implemented", () => {
+    const policy = read("PAYMENTS_ANDROID.md");
+    const mobilePolicy = read("mobile/src/payments/policy.ts");
+    const app = read("mobile/App.tsx");
+    expect(policy).toContain("Google Play Billing");
+    expect(policy).toContain("must not expose an in-app Stripe checkout");
+    expect(mobilePolicy).toContain("externalCheckoutAllowedInAndroid: false");
+    expect(app).toContain("Google Play Billing required");
+    expect(app).toContain("Stripe remains web-only");
+  });
 });
