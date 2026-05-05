@@ -2,7 +2,12 @@ import type { Route } from "next";
 import { requireDbUser } from "@/lib/auth/current-user";
 import { getServiceEntitlement } from "@/lib/billing/stripe";
 import { BillingCheckoutButton } from "@/app/components/BillingCheckoutButton";
-import { AppServiceShell, StepCard } from "@/app/components/ServiceFlow";
+import {
+  AppServiceShell,
+  PlatformWorkbenchPanel,
+  StepCard,
+} from "@/app/components/ServiceFlow";
+import { getPlatformSnapshot } from "@/lib/service/platform";
 
 export const dynamic = "force-dynamic";
 
@@ -39,9 +44,24 @@ const billingSteps = [
 
 export default async function BillingPage() {
   const me = await requireDbUser();
-  const entitlement = await getServiceEntitlement(me.id);
+  const [entitlement, snapshot] = await Promise.all([
+    getServiceEntitlement(me.id),
+    getPlatformSnapshot(me.id),
+  ]);
   const status = entitlement?.status ?? "inactive";
   const isActive = status === "active" || status === "trialing";
+  const stripeConfigured = Boolean(
+    process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID,
+  );
+  const stage =
+    snapshot.stages.find((item) => item.href === "/app/billing") ??
+    snapshot.stages[2];
+  const billingActions = snapshot.actions.filter(
+    (item) =>
+      item.subject === "billing" ||
+      item.subject === "safety" ||
+      item.agentId === "sabr",
+  );
 
   return (
     <AppServiceShell
@@ -58,6 +78,29 @@ export default async function BillingPage() {
         </>
       }
     >
+      <PlatformWorkbenchPanel
+        actions={billingActions}
+        metrics={[
+          {
+            label: "Entitlement",
+            value: status,
+            body: entitlement?.source
+              ? `Source: ${entitlement.source}.`
+              : "No paid service gate is active yet.",
+          },
+          {
+            label: "Checkout",
+            value: stripeConfigured ? "configured" : "blocked",
+            body: "Stripe must be configured before web checkout can open.",
+          },
+          {
+            label: "Android",
+            value: "Play Billing",
+            body: "Android paid access remains locked until Play Billing is wired.",
+          },
+        ]}
+        stage={stage}
+      />
       <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr]">
         <section className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-6">
           <p className="font-mono text-[0.65rem] uppercase tracking-[0.16em] text-[var(--color-ink-faint)]">
@@ -76,6 +119,11 @@ export default async function BillingPage() {
               Entitlement
             </p>
             <p className="mt-2 font-serif text-[1.35rem]">{status}</p>
+            {entitlement?.source && (
+              <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
+                Source: {entitlement.source}
+              </p>
+            )}
             {entitlement?.currentPeriodEnd && (
               <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
                 Current period ends{" "}

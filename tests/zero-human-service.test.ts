@@ -53,6 +53,23 @@ describe("zero-human service path", () => {
     }
   });
 
+  it("keeps launch-gate pages operational instead of static copy", () => {
+    const serviceFlow = read("app/components/ServiceFlow.tsx");
+    const verification = read("app/app/verification/page.tsx");
+    const billing = read("app/app/billing/page.tsx");
+    const family = read("app/app/family/page.tsx");
+    expect(serviceFlow).toContain("PlatformWorkbenchPanel");
+    for (const page of [verification, billing, family]) {
+      expect(page).toContain("getPlatformSnapshot");
+      expect(page).toContain("PlatformWorkbenchPanel");
+    }
+    expect(verification).toContain("DeviceBootstrap");
+    expect(verification).toContain("Refresh Hafiz checks");
+    expect(billing).toContain("STRIPE_SECRET_KEY");
+    expect(billing).toContain("Play Billing");
+    expect(family).toContain("Observer posting");
+  });
+
   it("documents payment as self-serve and launch-gated until Stripe is set", () => {
     expect(read(".env.example")).toContain("STRIPE_SECRET_KEY");
     expect(read(".env.example")).toContain("STRIPE_PRICE_ID");

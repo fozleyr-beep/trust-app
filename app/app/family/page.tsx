@@ -1,7 +1,16 @@
 import type { Route } from "next";
 import { requireDbUser } from "@/lib/auth/current-user";
-import { AppServiceShell, StepCard } from "@/app/components/ServiceFlow";
-import { AgentBubble, FamilyObserverBadge, TrustChip } from "@/app/components/SakinahPrimitives";
+import {
+  AppServiceShell,
+  PlatformWorkbenchPanel,
+  StepCard,
+} from "@/app/components/ServiceFlow";
+import {
+  AgentBubble,
+  FamilyObserverBadge,
+  TrustChip,
+} from "@/app/components/SakinahPrimitives";
+import { getPlatformSnapshot } from "@/lib/service/platform";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +46,18 @@ const observerRules = [
 ] as const;
 
 export default async function FamilyPage() {
-  await requireDbUser();
+  const me = await requireDbUser();
+  const snapshot = await getPlatformSnapshot(me.id);
+  const roomStage =
+    snapshot.stages.find((item) => item.href === "/app/threads") ??
+    snapshot.stages[5];
+  const familyActions = snapshot.actions.filter(
+    (item) =>
+      item.subject === "family" ||
+      item.subject === "safety" ||
+      item.agentId === "sabr" ||
+      item.agentId === "adil",
+  );
 
   return (
     <AppServiceShell
@@ -54,6 +74,34 @@ export default async function FamilyPage() {
         </>
       }
     >
+      <PlatformWorkbenchPanel
+        actions={familyActions}
+        metrics={[
+          {
+            label: "Rooms",
+            value: String(snapshot.threads.length),
+            body: "Room membership is enforced server-side.",
+          },
+          {
+            label: "Salaam",
+            value: String(snapshot.salaams.length),
+            body: "Family can witness only after product consent state exists.",
+          },
+          {
+            label: "Observer posting",
+            value: "blocked",
+            body: "Messaging authz rejects observer sends.",
+          },
+        ]}
+        stage={{
+          ...roomStage,
+          label: "Family observer boundary",
+          owner: "Sabr",
+          status: "complete",
+          detail:
+            "Observer posting is blocked at the messaging authorization layer; family presence must remain visible.",
+        }}
+      />
       <section className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <FamilyObserverBadge count={2} />
