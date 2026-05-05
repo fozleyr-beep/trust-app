@@ -6,7 +6,10 @@ import {
   SalaamResponseButton,
   ServiceRunButton,
 } from "@/app/components/ServiceControls";
-import { listSalaamRequests } from "@/lib/service/operations";
+import {
+  getSalaamQuotaStatus,
+  listSalaamRequests,
+} from "@/lib/service/operations";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +43,7 @@ const consentRules = [
 export default async function SalaamPage() {
   const me = await requireDbUser();
   const salaams = await listSalaamRequests(me.id);
+  const quota = await getSalaamQuotaStatus(me.id);
 
   return (
     <AppServiceShell
@@ -59,6 +63,11 @@ export default async function SalaamPage() {
       <div className="mb-4">
         <ServiceRunButton agentId="adil">Refresh Adil consent state</ServiceRunButton>
       </div>
+      <section className="mb-4 grid gap-4 md:grid-cols-3">
+        <QuotaMetric label="Salaam left" value={`${quota.left}/${quota.limit}`} />
+        <QuotaMetric label="Sent this week" value={String(quota.sent)} />
+        <QuotaMetric label="Resets" value={quota.resetsAt} />
+      </section>
       {salaams.length > 0 && (
         <section className="mb-4 grid gap-3">
           {salaams.map((salaam) => (
@@ -82,6 +91,13 @@ export default async function SalaamPage() {
                 {salaam.recipientStatus}.
                 {salaam.threadId ? ` Room: ${salaam.threadId}` : " Room closed."}
               </p>
+              {salaam.expiresAt && (
+                <p className="mt-2 text-sm leading-6 text-[var(--color-ink-muted)]">
+                  {salaam.expired
+                    ? "Waiting window has expired."
+                    : `Waiting window ends ${salaam.expiresAt.slice(0, 10)}.`}
+                </p>
+              )}
               {salaam.status === "requested" && (
                 <div className="mt-4 flex flex-wrap gap-3">
                   <SalaamResponseButton id={salaam.id} response="accept">
@@ -121,5 +137,16 @@ export default async function SalaamPage() {
         ))}
       </div>
     </AppServiceShell>
+  );
+}
+
+function QuotaMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <article className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-4">
+      <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
+        {label}
+      </p>
+      <p className="mt-2 font-serif text-[1.35rem] leading-tight">{value}</p>
+    </article>
   );
 }

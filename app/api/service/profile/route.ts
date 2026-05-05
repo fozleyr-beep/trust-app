@@ -6,13 +6,18 @@ import {
   getServiceProfile,
   saveServiceProfile,
 } from "@/lib/service/operations";
+import { getProfileCompleteness } from "@/lib/service/profile-completeness";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const me = await requireDbUser();
-  return NextResponse.json({ profile: await getServiceProfile(me.id) });
+  const profile = await getServiceProfile(me.id);
+  return NextResponse.json({
+    completeness: getProfileCompleteness(profile),
+    profile,
+  });
 }
 
 export async function POST(req: Request) {
@@ -20,5 +25,8 @@ export async function POST(req: Request) {
   const parsed = await parseBody(req, ServiceProfileInput);
   if (parsed.error) return parsed.error;
   const profile = await saveServiceProfile(me.id, parsed.data);
-  return NextResponse.json({ profile });
+  return NextResponse.json({
+    completeness: getProfileCompleteness(profile),
+    profile,
+  });
 }

@@ -161,6 +161,15 @@ describe("zero-human service path", () => {
     expect(read("app/api/service/audit/route.ts")).toContain(
       "getPlatformSnapshot",
     );
+    expect(read("app/api/service/profile/route.ts")).toContain(
+      "getProfileCompleteness",
+    );
+    expect(read("app/api/service/matches/route.ts")).toContain(
+      "fakeInventory: false",
+    );
+    expect(read("app/api/service/salaam/route.ts")).toContain(
+      "getSalaamQuotaStatus",
+    );
     expect(read("middleware.ts")).toContain("/api/billing/webhook");
     expect(read("DECISIONS.md")).toContain("zero human operator");
     expect(read("DECISIONS.md")).toContain("/app/billing");

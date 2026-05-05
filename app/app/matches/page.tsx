@@ -7,6 +7,7 @@ import {
   ServiceRunButton,
 } from "@/app/components/ServiceControls";
 import { listMatchSuggestions } from "@/lib/service/operations";
+import { explainMatchSuggestion } from "@/lib/service/match-explainability";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,16 @@ export default async function MatchesPage() {
               </p>
               <div className="mt-5">
                 <AgentBubble agent="Watim">{match.reason}</AgentBubble>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {explainMatchSuggestion(match).map((chip) => (
+                  <span
+                    className="rounded-full border border-[var(--color-rule)] px-3 py-1 text-xs text-[var(--color-ink-muted)]"
+                    key={chip}
+                  >
+                    {chip}
+                  </span>
+                ))}
               </div>
               <div className="mt-5 flex flex-wrap gap-3">
                 <MatchResponseButton id={match.id} response="request_salaam">

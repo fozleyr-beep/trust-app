@@ -19,6 +19,7 @@ export default async function DiscoveryPage() {
   const watimActions = snapshot.actions.filter(
     (item) => item.agentId === "watim" || item.subject === "matching",
   );
+  const savedPreferences = snapshot.profile?.preferences?.trim();
 
   return (
     <AppServiceShell
@@ -56,6 +57,16 @@ export default async function DiscoveryPage() {
         ]}
         stage={matchStage}
       />
+      {savedPreferences && (
+        <section className="mb-6 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-5">
+          <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
+            saved preference contract
+          </p>
+          <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">
+            {savedPreferences}
+          </p>
+        </section>
+      )}
       <DiscoveryFilterWorkbench />
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <StepCard

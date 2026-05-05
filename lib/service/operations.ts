@@ -13,6 +13,12 @@ import type {
   SalaamResponseInput,
   ServiceProfileInput,
 } from "@/lib/api/schemas";
+import {
+  isSalaamExpired,
+  nextWeekStartIso,
+  salaamExpiresAt,
+  weekStartIso,
+} from "@/lib/service/salaam-policy";
 
 export class ServiceOperationError extends Error {
   constructor(
@@ -40,6 +46,7 @@ export type MatchSuggestionView = {
   label: string;
   context: string;
   reason: string;
+  evidence: string[];
   status: string;
   candidateUserId: string | null;
   createdAt: string;
@@ -51,6 +58,8 @@ export type SalaamRequestView = {
   status: string;
   requesterStatus: string;
   recipientStatus: string;
+  expiresAt: string | null;
+  expired: boolean;
   side: "requester" | "recipient";
   counterpartyEmail: string;
   threadId: string | null;
@@ -62,6 +71,7 @@ export type SalaamQuotaView = {
   sent: number;
   left: number;
   weekStart: string;
+  resetsAt: string;
 };
 
 const SALAAM_WEEKLY_LIMIT = 3;
@@ -279,6 +289,7 @@ export async function getSalaamQuotaStatus(
     sent,
     left: Math.max(0, SALAAM_WEEKLY_LIMIT - sent),
     weekStart,
+    resetsAt: nextWeekStartIso(now),
   };
 }
 
@@ -328,6 +339,8 @@ export async function listSalaamRequests(
       status: row.status,
       requesterStatus: row.requesterStatus,
       recipientStatus: row.recipientStatus,
+      expiresAt: salaamExpiresAt(row.updatedAt, row.status),
+      expired: isSalaamExpired(row.updatedAt, row.status),
       side,
       counterpartyEmail:
         side === "requester"
@@ -561,15 +574,23 @@ async function runAdil(userId: string): Promise<void> {
 async function runSabr(userId: string): Promise<void> {
   const salaams = await listSalaamRequests(userId);
   const pendingCount = salaams.filter((item) => item.status === "requested").length;
+  const expiredCount = salaams.filter((item) => item.expired).length;
   await recordAgentAction({
     userId,
     key: "sabr.pressure.flags",
     agentId: "sabr",
     status: "live",
-    action: pendingCount > 0 ? "pressure watch active" : "safety state visible",
+    action:
+      expiredCount > 0
+        ? "expired salaam visible"
+        : pendingCount > 0
+          ? "pressure watch active"
+          : "safety state visible",
     subject: "safety",
     detail:
-      pendingCount > 0
+      expiredCount > 0
+        ? `${expiredCount} salaam request(s) have passed the waiting window without reading room plaintext.`
+        : pendingCount > 0
         ? `${pendingCount} pending salaam request(s) are visible so pressure does not become hidden staff work.`
         : "Sabr has a visible safety ledger without reading encrypted room plaintext.",
   });
@@ -620,16 +641,6 @@ async function reserveSalaamQuota(userId: string): Promise<void> {
     });
 }
 
-export function weekStartIso(now = new Date()): string {
-  const date = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-  const day = date.getUTCDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  date.setUTCDate(date.getUTCDate() + mondayOffset);
-  return date.toISOString().slice(0, 10);
-}
-
 function toProfileView(row: schema.ServiceProfile): ServiceProfileView {
   return {
     id: row.id,
@@ -652,9 +663,25 @@ function toMatchSuggestionView(
     label: row.label,
     context: row.context,
     reason: row.reason,
+    evidence: matchEvidence(row),
     status: row.status,
     candidateUserId: row.candidateUserId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+function matchEvidence(row: schema.MatchSuggestion): string[] {
+  const chips = new Set<string>();
+  if (row.candidateUserId) chips.add("verified candidate");
+  if (row.context) {
+    for (const part of row.context.split("·")) {
+      const value = part.trim();
+      if (value) chips.add(value);
+    }
+  }
+  if (/consented intake/i.test(row.reason)) chips.add("consented intake");
+  if (/small|capped|shortlist/i.test(row.reason)) chips.add("bounded shortlist");
+  if (chips.size === 0) chips.add("reason visible");
+  return [...chips].slice(0, 5);
 }
