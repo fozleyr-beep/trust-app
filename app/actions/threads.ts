@@ -50,8 +50,12 @@ export async function createThread(formData: FormData): Promise<void> {
     .returning({ id: schema.threads.id });
 
   const memberRows = [
-    { threadId: thread.id, userId: me.id },
-    ...recipients.map((r) => ({ threadId: thread.id, userId: r.id })),
+    { threadId: thread.id, userId: me.id, role: "participant" },
+    ...recipients.map((r) => ({
+      threadId: thread.id,
+      userId: r.id,
+      role: "participant",
+    })),
   ];
   await conn.insert(schema.threadMembers).values(memberRows);
 

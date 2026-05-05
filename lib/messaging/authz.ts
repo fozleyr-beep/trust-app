@@ -5,6 +5,7 @@
 //
 // The contract: a sender may only fan out a message to recipient device
 // keys that (a) exist and (b) belong to a current member of the thread.
+// A thread member marked observer can receive ciphertext but cannot send.
 // Anything else is a pollution / exfiltration vector and must be rejected
 // at write time.
 
@@ -17,6 +18,8 @@ export type DeviceLookup = {
   userId: string;
 };
 
+export type ThreadMemberRole = "participant" | "observer";
+
 export type FanoutValidation =
   | { ok: true }
   | { ok: false; status: 400; error: string }
@@ -24,9 +27,18 @@ export type FanoutValidation =
 
 export function validateFanout(args: {
   fanout: FanoutEntry[];
+  senderRole?: ThreadMemberRole;
   targetDevices: DeviceLookup[];
   threadMemberUserIds: string[];
 }): FanoutValidation {
+  if (args.senderRole === "observer") {
+    return {
+      ok: false,
+      status: 403,
+      error: "observer members cannot send messages",
+    };
+  }
+
   if (args.fanout.length === 0) {
     return {
       ok: false,

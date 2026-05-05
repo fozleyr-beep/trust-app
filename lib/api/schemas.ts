@@ -42,7 +42,32 @@ export const AgentRequest = z.object({
     .max(50),
 });
 
+export const ServiceProfileInput = z.object({
+  role: z.enum(["seeker", "family"]).default("seeker"),
+  location: z.string().trim().min(2).max(120),
+  intent: z.string().trim().min(2).max(240).optional(),
+  familyContext: z.string().trim().max(600).optional(),
+  preferences: z.string().trim().max(1200).optional(),
+  privacyConsent: z.literal(true),
+});
+
+export const RunServiceAgentsInput = z.object({
+  agentId: z.enum(["hafiz", "watim", "adil", "sabr"]).optional(),
+});
+
+export const MatchResponseInput = z.object({
+  response: z.enum(["request_salaam", "dismiss"]),
+});
+
+export const SalaamResponseInput = z.object({
+  response: z.enum(["accept", "decline"]),
+});
+
 export type RegisterDevice = z.infer<typeof RegisterDevice>;
 export type SenderKeysRequest = z.infer<typeof SenderKeysRequest>;
 export type SendMessage = z.infer<typeof SendMessage>;
 export type AgentRequest = z.infer<typeof AgentRequest>;
+export type ServiceProfileInput = z.infer<typeof ServiceProfileInput>;
+export type RunServiceAgentsInput = z.infer<typeof RunServiceAgentsInput>;
+export type MatchResponseInput = z.infer<typeof MatchResponseInput>;
+export type SalaamResponseInput = z.infer<typeof SalaamResponseInput>;

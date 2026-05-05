@@ -17,6 +17,10 @@ describe("zero-human service path", () => {
     "app/app/salaam/page.tsx",
     "app/app/family/page.tsx",
     "app/api/agents/actions/route.ts",
+    "app/api/service/profile/route.ts",
+    "app/api/service/agents/run/route.ts",
+    "app/api/service/matches/[id]/respond/route.ts",
+    "app/api/service/salaam/[id]/route.ts",
   ];
 
   it("keeps every zero-human route present behind /app", () => {
@@ -48,10 +52,41 @@ describe("zero-human service path", () => {
     expect(read("app/api/billing/checkout/route.ts")).toContain("status: 501");
     expect(read("app/api/billing/webhook/route.ts")).toContain("STRIPE_WEBHOOK_SECRET");
     expect(read("lib/db/schema.ts")).toContain("agent_actions");
+    expect(read("lib/db/schema.ts")).toContain("service_profiles");
+    expect(read("lib/db/schema.ts")).toContain("match_suggestions");
+    expect(read("lib/db/schema.ts")).toContain("salaam_requests");
     expect(read("app/api/agents/actions/route.ts")).toContain("sakinahAgents");
     expect(read("middleware.ts")).toContain("/api/billing/webhook");
     expect(read("DECISIONS.md")).toContain("zero human operator");
     expect(read("DECISIONS.md")).toContain("/app/billing");
+  });
+
+  it("keeps Android payments locked to Play Billing", () => {
+    const mobile = read("mobile/App.tsx");
+    expect(read("mobile/src/payments/policy.ts")).toContain(
+      "google-play-billing",
+    );
+    expect(mobile).toContain("Google Play Billing required");
+    expect(mobile).not.toMatch(/checkout\.stripe|STRIPE_PRICE_ID|bank transfer/i);
+  });
+
+  it("makes the four agents operational without room plaintext", () => {
+    const ops = read("lib/service/operations.ts");
+    expect(ops).toContain("saveServiceProfile");
+    expect(ops).toContain("not fabricate matches");
+    expect(ops).toContain("createConsentThread");
+    expect(ops).toContain("sabr.pressure.flags");
+    expect(ops).not.toContain("schema.messages");
+  });
+
+  it("blocks observer posting at the messaging authorization layer", () => {
+    expect(read("lib/db/schema.ts")).toContain("role: text(\"role\")");
+    expect(read("lib/messaging/authz.ts")).toContain(
+      "observer members cannot send messages",
+    );
+    expect(read("app/api/threads/[id]/messages/route.ts")).toContain(
+      "senderRole",
+    );
   });
 
   it("does not position manual staff as part of service delivery", () => {

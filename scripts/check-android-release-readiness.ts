@@ -38,6 +38,37 @@ function checkEasProjectId(): Check {
       };
 }
 
+function checkLocalVersionSource(): Check {
+  const eas = readJson("mobile/eas.json") as {
+    cli?: { appVersionSource?: string };
+  };
+  return eas.cli?.appVersionSource === "local"
+    ? { name: "eas app version source", status: "ok", detail: "local" }
+    : {
+        name: "eas app version source",
+        status: "fail",
+        detail: "set cli.appVersionSource to local before Play builds",
+      };
+}
+
+function checkAndroidVersionCode(): Check {
+  const app = readJson("mobile/app.json") as {
+    expo?: { android?: { versionCode?: number } };
+  };
+  const versionCode = app.expo?.android?.versionCode;
+  return Number.isInteger(versionCode) && Number(versionCode) > 0
+    ? {
+        name: "android versionCode",
+        status: "ok",
+        detail: String(versionCode),
+      }
+    : {
+        name: "android versionCode",
+        status: "fail",
+        detail: "missing positive integer",
+      };
+}
+
 function checkDomain(): Check {
   const app = readJson("mobile/app.json") as {
     expo?: { extra?: { apiBaseUrl?: string } };
@@ -72,9 +103,14 @@ const checks: Check[] = [
   checkFile("mobile/store/internal-testing-qa.md"),
   checkFile("PAYMENTS_ANDROID.md"),
   checkFile("DOMAIN_ALIGNMENT.md"),
+  checkFile("mobile/assets/sakinah-icon.png"),
+  checkFile("mobile/assets/adaptive-icon.png"),
+  checkFile("mobile/assets/feature-graphic.png"),
   checkFile("app/privacy/page.tsx"),
   checkFile("app/account/delete/page.tsx"),
   checkEasProjectId(),
+  checkLocalVersionSource(),
+  checkAndroidVersionCode(),
   checkDomain(),
   checkEnv(),
 ];

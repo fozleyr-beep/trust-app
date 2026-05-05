@@ -34,6 +34,11 @@ import {
 } from "./src/messaging/api";
 import { androidPaymentPolicy } from "./src/payments/policy";
 import {
+  runMobileServiceAgents,
+  saveMobileServiceProfile,
+  type MobileAgentAction,
+} from "./src/service/api";
+import {
   agentActionBaselines,
   agentName,
   sakinahAgents,
@@ -212,20 +217,7 @@ function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
         )}
 
         {tab === "agents" && (
-          <View style={styles.stack}>
-            <AgentLedgerCards />
-            {sakinahAgents.map((agent) => (
-              <Card key={agent.id}>
-                <View style={styles.cardTopline}>
-                  <Text style={styles.cardTitle}>{agent.name}</Text>
-                  <Text style={styles.arabic}>{agent.arabic}</Text>
-                </View>
-                <Text style={styles.cardAgent}>{agent.role}</Text>
-                <Text style={styles.cardBody}>{agent.promise}</Text>
-                <Text style={styles.boundary}>{agent.boundary}</Text>
-              </Card>
-            ))}
-          </View>
+          <AgentsTab apiBaseUrl={apiBaseUrl} nativeAuthReady={nativeAuthReady} />
         )}
 
         {tab === "account" && (
@@ -486,7 +478,115 @@ function MatchReadinessCard() {
   );
 }
 
-function AgentLedgerCards() {
+function AgentsTab({
+  apiBaseUrl,
+  nativeAuthReady,
+}: {
+  apiBaseUrl: string;
+  nativeAuthReady: boolean;
+}) {
+  if (!nativeAuthReady) {
+    return (
+      <View style={styles.stack}>
+        <AgentLedgerCards />
+        <AgentCatalogCards />
+      </View>
+    );
+  }
+  return <AuthenticatedAgentsTab apiBaseUrl={apiBaseUrl} />;
+}
+
+function AuthenticatedAgentsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const [actions, setActions] = useState<MobileAgentAction[]>([]);
+  const [status, setStatus] = useState("Run the four-agent service ledger.");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function runAgents() {
+    setIsSubmitting(true);
+    setStatus("Running service agents...");
+    try {
+      const result = await runMobileServiceAgents({ apiBaseUrl, getToken });
+      setActions(result.actions);
+      setStatus(`${result.actions.length} agent action(s) visible.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Agent run failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (!isLoaded || !isSignedIn) {
+    return (
+      <View style={styles.stack}>
+        <AgentLedgerCards />
+        <Card>
+          <Text style={styles.cardTitle}>Service agents</Text>
+          <Text style={styles.cardBody}>
+            Sign in before running Hafiz, Watim, Adil, and Sabr against your
+            service state.
+          </Text>
+        </Card>
+        <AgentCatalogCards />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.stack}>
+      <AgentLedgerCards actions={actions} />
+      <Card>
+        <Text style={styles.cardTitle}>Run agents</Text>
+        <Text style={styles.cardBody}>{status}</Text>
+        <Pressable
+          disabled={isSubmitting}
+          style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
+          onPress={() => void runAgents()}
+        >
+          <Text style={styles.primaryButtonText}>Run four agents</Text>
+        </Pressable>
+      </Card>
+      <AgentCatalogCards />
+    </View>
+  );
+}
+
+function AgentCatalogCards() {
+  return (
+    <>
+      {sakinahAgents.map((agent) => (
+        <Card key={agent.id}>
+          <View style={styles.cardTopline}>
+            <Text style={styles.cardTitle}>{agent.name}</Text>
+            <Text style={styles.arabic}>{agent.arabic}</Text>
+          </View>
+          <Text style={styles.cardAgent}>{agent.role}</Text>
+          <Text style={styles.cardBody}>{agent.promise}</Text>
+          <Text style={styles.boundary}>{agent.boundary}</Text>
+        </Card>
+      ))}
+    </>
+  );
+}
+
+function AgentLedgerCards({ actions = [] }: { actions?: MobileAgentAction[] }) {
+  const rows =
+    actions.length > 0
+      ? actions.map((item) => ({
+          key: item.key,
+          agent: item.agentName,
+          status: item.status,
+          action: item.action,
+          detail: item.detail ?? "",
+        }))
+      : agentActionBaselines.map((item) => ({
+          key: item.key,
+          agent: agentName(item.agentId),
+          status: item.status,
+          action: item.action,
+          detail: item.detail,
+        }));
+
   return (
     <Card>
       <Text style={styles.cardTitle}>Agent ledger</Text>
@@ -494,10 +594,10 @@ function AgentLedgerCards() {
         Product-state actions visible to the user before any human coordinator
         exists.
       </Text>
-      {agentActionBaselines.map((item) => (
+      {rows.map((item) => (
         <View style={styles.ledgerRow} key={item.key}>
           <View style={styles.ledgerTopline}>
-            <Text style={styles.cardAgent}>{agentName(item.agentId)}</Text>
+            <Text style={styles.cardAgent}>{item.agent}</Text>
             <Pill state={item.status} />
           </View>
           <Text style={styles.ledgerAction}>{item.action}</Text>
@@ -583,7 +683,7 @@ function AuthenticatedAccountTab({ apiBaseUrl }: { apiBaseUrl: string }) {
             "Private Sakinah account"}
         </Text>
       </Card>
-      <OnboardingGate />
+      <OnboardingGate apiBaseUrl={apiBaseUrl} getToken={getToken} />
       <DeviceKeyCard apiBaseUrl={apiBaseUrl} getToken={getToken} />
       <Pressable style={styles.primaryButton} onPress={() => void signOut()}>
         <Text style={styles.primaryButtonText}>Sign out</Text>
@@ -654,13 +754,20 @@ function DeviceKeyCard({
   );
 }
 
-function OnboardingGate() {
+function OnboardingGate({
+  apiBaseUrl,
+  getToken,
+}: {
+  apiBaseUrl: string;
+  getToken: () => Promise<string | null>;
+}) {
   const [intent, setIntent] = useState<Intent>("seeker");
   const [location, setLocation] = useState("");
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState("Tell the agents where to begin.");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function onSave() {
+  async function onSave() {
     if (!location.trim()) {
       setStatus("City or region is required.");
       return;
@@ -669,11 +776,30 @@ function OnboardingGate() {
       setStatus("Privacy consent is required before agents can start.");
       return;
     }
-    setStatus(
-      intent === "seeker"
-        ? "Seeker path ready. Hafiz can begin verification."
-        : "Family path ready. Adil can prepare consent boundaries.",
-    );
+    setIsSubmitting(true);
+    setStatus("Saving onboarding to Sakinah...");
+    try {
+      const result = await saveMobileServiceProfile({
+        apiBaseUrl,
+        getToken,
+        intent:
+          intent === "seeker"
+            ? "seeking marriage service"
+            : "supporting family service path",
+        location: location.trim(),
+        privacyConsent: consent,
+        role: intent,
+      });
+      setStatus(
+        result.profile.readiness === "ready"
+          ? "Profile saved. Hafiz can begin verification."
+          : "Profile saved, but Hafiz still needs consent.",
+      );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Onboarding save failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -709,7 +835,11 @@ function OnboardingGate() {
           steps.
         </Text>
       </Pressable>
-      <Pressable style={styles.primaryButton} onPress={onSave}>
+      <Pressable
+        disabled={isSubmitting}
+        style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
+        onPress={() => void onSave()}
+      >
         <Text style={styles.primaryButtonText}>Save onboarding</Text>
       </Pressable>
     </Card>

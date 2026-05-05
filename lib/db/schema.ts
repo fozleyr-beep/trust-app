@@ -85,6 +85,7 @@ export const threadMembers = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("participant"),
     addedAt: timestamp("added_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -184,6 +185,116 @@ export const billingEvents = pgTable(
   }),
 );
 
+// ─── service_profiles ─────────────────────────────────────────────────
+// Minimal zero-human service intake state. This intentionally stores user
+// supplied profile facts, not identity evidence or encrypted-room content.
+export const serviceProfiles = pgTable(
+  "service_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("seeker"),
+    readiness: text("readiness").notNull().default("needs_intake"),
+    location: text("location"),
+    intent: text("intent"),
+    familyContext: text("family_context"),
+    preferences: text("preferences"),
+    privacyConsentAt: timestamp("privacy_consent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    userUnique: uniqueIndex("service_profiles_user_idx").on(t.userId),
+    readinessIdx: index("service_profiles_readiness_idx").on(t.readiness),
+  }),
+);
+
+// ─── match_suggestions ────────────────────────────────────────────────
+// Watim suggestions are bounded and explainable. candidateUserId is nullable
+// so an audit row can still describe why no real candidate was shown.
+export const matchSuggestions = pgTable(
+  "match_suggestions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    candidateUserId: uuid("candidate_user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    label: text("label").notNull(),
+    context: text("context").notNull(),
+    reason: text("reason").notNull(),
+    status: text("status").notNull().default("suggested"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    userStatusIdx: index("match_suggestions_user_status_idx").on(
+      t.userId,
+      t.status,
+    ),
+    userCandidateUnique: uniqueIndex(
+      "match_suggestions_user_candidate_idx",
+    ).on(t.userId, t.candidateUserId),
+  }),
+);
+
+// ─── salaam_requests ──────────────────────────────────────────────────
+// Adil consent state. A room opens only after requester and recipient have
+// both accepted; observers are represented by thread_members.role.
+export const salaamRequests = pgTable(
+  "salaam_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    matchSuggestionId: uuid("match_suggestion_id").references(
+      () => matchSuggestions.id,
+      { onDelete: "set null" },
+    ),
+    requesterId: uuid("requester_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recipientId: uuid("recipient_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    requesterStatus: text("requester_status").notNull().default("accepted"),
+    recipientStatus: text("recipient_status").notNull().default("pending"),
+    status: text("status").notNull().default("requested"),
+    threadId: uuid("thread_id").references(() => threads.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    requesterStatusIdx: index("salaam_requests_requester_status_idx").on(
+      t.requesterId,
+      t.status,
+    ),
+    recipientStatusIdx: index("salaam_requests_recipient_status_idx").on(
+      t.recipientId,
+      t.status,
+    ),
+    matchUnique: uniqueIndex("salaam_requests_match_idx").on(
+      t.matchSuggestionId,
+    ),
+  }),
+);
+
 // ─── agent_actions ────────────────────────────────────────────────────
 // Per-user operating ledger for the four named service agents. This stores
 // product-state decisions, not encrypted-room content and not raw ID evidence.
@@ -230,6 +341,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(threadMembers),
   messagesSent: many(messages),
   agentActions: many(agentActions),
+  serviceProfiles: many(serviceProfiles),
+  matchSuggestions: many(matchSuggestions),
 }));
 
 export const threadsRelations = relations(threads, ({ one, many }) => ({
@@ -284,6 +397,52 @@ export const serviceEntitlementsRelations = relations(
   }),
 );
 
+export const serviceProfilesRelations = relations(
+  serviceProfiles,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [serviceProfiles.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const matchSuggestionsRelations = relations(
+  matchSuggestions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [matchSuggestions.userId],
+      references: [users.id],
+      relationName: "match_suggestion_user",
+    }),
+    candidate: one(users, {
+      fields: [matchSuggestions.candidateUserId],
+      references: [users.id],
+      relationName: "match_suggestion_candidate",
+    }),
+  }),
+);
+
+export const salaamRequestsRelations = relations(
+  salaamRequests,
+  ({ one }) => ({
+    requester: one(users, {
+      fields: [salaamRequests.requesterId],
+      references: [users.id],
+      relationName: "salaam_requester",
+    }),
+    recipient: one(users, {
+      fields: [salaamRequests.recipientId],
+      references: [users.id],
+      relationName: "salaam_recipient",
+    }),
+    thread: one(threads, {
+      fields: [salaamRequests.threadId],
+      references: [threads.id],
+    }),
+  }),
+);
+
 export const agentActionsRelations = relations(agentActions, ({ one }) => ({
   user: one(users, {
     fields: [agentActions.userId],
@@ -304,5 +463,11 @@ export type ServiceEntitlement = typeof serviceEntitlements.$inferSelect;
 export type NewServiceEntitlement = typeof serviceEntitlements.$inferInsert;
 export type BillingEvent = typeof billingEvents.$inferSelect;
 export type NewBillingEvent = typeof billingEvents.$inferInsert;
+export type ServiceProfile = typeof serviceProfiles.$inferSelect;
+export type NewServiceProfile = typeof serviceProfiles.$inferInsert;
+export type MatchSuggestion = typeof matchSuggestions.$inferSelect;
+export type NewMatchSuggestion = typeof matchSuggestions.$inferInsert;
+export type SalaamRequest = typeof salaamRequests.$inferSelect;
+export type NewSalaamRequest = typeof salaamRequests.$inferInsert;
 export type AgentAction = typeof agentActions.$inferSelect;
 export type NewAgentAction = typeof agentActions.$inferInsert;

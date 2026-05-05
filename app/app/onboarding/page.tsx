@@ -1,6 +1,8 @@
 import type { Route } from "next";
 import { requireDbUser } from "@/lib/auth/current-user";
 import { AppServiceShell, StepCard } from "@/app/components/ServiceFlow";
+import { ServiceProfileForm } from "@/app/components/ServiceControls";
+import { getServiceProfile } from "@/lib/service/operations";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +34,8 @@ const steps = [
 ] as const;
 
 export default async function OnboardingPage() {
-  await requireDbUser();
+  const me = await requireDbUser();
+  const profile = await getServiceProfile(me.id);
 
   return (
     <AppServiceShell
@@ -49,7 +52,8 @@ export default async function OnboardingPage() {
         </>
       }
     >
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <ServiceProfileForm profile={profile} />
+      <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {steps.map((step) => (
           <StepCard key={step.n} {...step} state="ready" />
         ))}

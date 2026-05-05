@@ -95,8 +95,8 @@ export const serviceStages = [
     agentId: "sabr",
     title: "Family",
     href: "/app/family",
-    state: "gate",
-    body: "Read-only family observer model. Server-side role enforcement is still a launch gate.",
+    state: "live",
+    body: "Read-only family observer model. Server-side role enforcement blocks observer posting.",
   },
 ] as const satisfies ReadonlyArray<{
   n: string;
@@ -143,10 +143,10 @@ export const agentActionBaselines = [
   {
     key: "sabr.observer.boundary",
     agentId: "sabr",
-    status: "gate",
-    action: "observer enforcement pending",
+    status: "live",
+    action: "observer enforcement active",
     subject: "family",
-    detail: "Family observers are designed as read-only; server-side role enforcement remains a launch gate.",
+    detail: "Family observers are read-only members; server-side messaging authz blocks posting.",
   },
 ] as const satisfies ReadonlyArray<{
   key: string;

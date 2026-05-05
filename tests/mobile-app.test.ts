@@ -31,6 +31,9 @@ describe("mobile app foundation", () => {
     const eas = read("mobile/eas.json");
     expect(app).toContain('"package": "family.sakinah.app"');
     expect(app).toContain('"bundleIdentifier": "family.sakinah.app"');
+    expect(app).toContain('"versionCode": 2');
+    expect(app).toContain("sakinah-icon.png");
+    expect(eas).toContain('"appVersionSource": "local"');
     expect(eas).toContain('"buildType": "app-bundle"');
     expect(eas).toContain('"track": "internal"');
   });
@@ -82,6 +85,7 @@ describe("mobile app foundation", () => {
   it("starts signed-in users with a consent-first onboarding gate", () => {
     const app = read("mobile/App.tsx");
     expect(app).toContain("OnboardingGate");
+    expect(app).toContain("saveMobileServiceProfile");
     expect(app).toContain("Start Sakinah");
     expect(app).toContain("Seeker");
     expect(app).toContain("Family");
@@ -94,6 +98,7 @@ describe("mobile app foundation", () => {
     expect(app).toContain("ServiceIntakeFlow");
     expect(app).toContain("MatchReadinessCard");
     expect(app).toContain("AgentLedgerCards");
+    expect(app).toContain("runMobileServiceAgents");
     expect(app).toContain("agentActionBaselines");
     expect(app).toContain("Privacy consent accepted");
     expect(app).toContain("Watim may prepare an explainable shortlist");
@@ -153,8 +158,11 @@ describe("mobile app foundation", () => {
 
   it("keeps Play artwork sources and screenshot plan in repo", () => {
     expect(existsSync(join(root, "mobile/assets/sakinah-icon.svg"))).toBe(true);
+    expect(existsSync(join(root, "mobile/assets/sakinah-icon.png"))).toBe(true);
+    expect(existsSync(join(root, "mobile/assets/adaptive-icon.png"))).toBe(true);
+    expect(existsSync(join(root, "mobile/assets/feature-graphic.png"))).toBe(true);
     expect(existsSync(join(root, "mobile/assets/feature-graphic.svg"))).toBe(true);
-    expect(read("mobile/store/play-listing.json")).toContain("sakinah-icon.svg");
+    expect(read("mobile/store/play-listing.json")).toContain("sakinah-icon.png");
     expect(read("mobile/store/screenshot-plan.md")).toContain("Store tab");
   });
 

@@ -10,8 +10,8 @@ const observerRules = [
     n: "01",
     title: "Read only",
     agent: "Adil",
-    state: "gate",
-    body: "Observer accounts can read the room but cannot send messages. Server-side role enforcement is required before launch.",
+    state: "live",
+    body: "Observer accounts can read the room but cannot send messages. Server-side role enforcement now blocks observer posting.",
   },
   {
     n: "02",
@@ -57,7 +57,7 @@ export default async function FamilyPage() {
       <section className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <FamilyObserverBadge count={2} />
-          <TrustChip agent="Adil" action="observer cannot post" timestamp="launch gate" />
+          <TrustChip agent="Adil" action="observer cannot post" timestamp="live" />
         </div>
         <div className="mt-6">
           <AgentBubble agent="Sabr">

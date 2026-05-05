@@ -2,6 +2,11 @@ import type { Route } from "next";
 import { requireDbUser } from "@/lib/auth/current-user";
 import { AppServiceShell, StepCard } from "@/app/components/ServiceFlow";
 import { AgentBubble, TrustChip } from "@/app/components/SakinahPrimitives";
+import {
+  SalaamResponseButton,
+  ServiceRunButton,
+} from "@/app/components/ServiceControls";
+import { listSalaamRequests } from "@/lib/service/operations";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +38,8 @@ const consentRules = [
 ] as const;
 
 export default async function SalaamPage() {
-  await requireDbUser();
+  const me = await requireDbUser();
+  const salaams = await listSalaamRequests(me.id);
 
   return (
     <AppServiceShell
@@ -50,6 +56,46 @@ export default async function SalaamPage() {
         </>
       }
     >
+      <div className="mb-4">
+        <ServiceRunButton agentId="adil">Refresh Adil consent state</ServiceRunButton>
+      </div>
+      {salaams.length > 0 && (
+        <section className="mb-4 grid gap-3">
+          {salaams.map((salaam) => (
+            <article
+              className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-5"
+              key={salaam.id}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="font-mono text-[0.65rem] uppercase tracking-[0.16em] text-[var(--color-ink-faint)]">
+                    {salaam.side} · {salaam.status}
+                  </p>
+                  <h2 className="mt-3 font-serif text-[1.45rem] leading-tight">
+                    {salaam.counterpartyEmail}
+                  </h2>
+                </div>
+                <TrustChip agent="Adil" action={salaam.status} timestamp="live" />
+              </div>
+              <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">
+                Requester: {salaam.requesterStatus}. Recipient:{" "}
+                {salaam.recipientStatus}.
+                {salaam.threadId ? ` Room: ${salaam.threadId}` : " Room closed."}
+              </p>
+              {salaam.status === "requested" && (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <SalaamResponseButton id={salaam.id} response="accept">
+                    Accept
+                  </SalaamResponseButton>
+                  <SalaamResponseButton id={salaam.id} response="decline">
+                    Decline
+                  </SalaamResponseButton>
+                </div>
+              )}
+            </article>
+          ))}
+        </section>
+      )}
       <section className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

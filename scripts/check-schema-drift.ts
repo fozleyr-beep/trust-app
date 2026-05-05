@@ -6,7 +6,13 @@
 // Run: npm run db:check
 
 import { execSync } from "node:child_process";
-import { existsSync, readdirSync, unlinkSync } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 const DRIZZLE_DIR = join(process.cwd(), "drizzle");
@@ -18,7 +24,30 @@ function listSqlFiles(): Set<string> {
   );
 }
 
+function snapshotMeta(): Map<string, string> {
+  const metaDir = join(DRIZZLE_DIR, "meta");
+  const files = new Map<string, string>();
+  if (!existsSync(metaDir)) return files;
+  for (const file of readdirSync(metaDir)) {
+    const full = join(metaDir, file);
+    files.set(file, readFileSync(full, "utf8"));
+  }
+  return files;
+}
+
+function restoreMeta(snapshot: Map<string, string>): void {
+  const metaDir = join(DRIZZLE_DIR, "meta");
+  if (!existsSync(metaDir)) return;
+  for (const file of readdirSync(metaDir)) {
+    if (!snapshot.has(file)) unlinkSync(join(metaDir, file));
+  }
+  for (const [file, contents] of snapshot) {
+    writeFileSync(join(metaDir, file), contents);
+  }
+}
+
 const before = listSqlFiles();
+const beforeMeta = snapshotMeta();
 
 try {
   execSync("npx drizzle-kit generate --name __drift_check__", {
@@ -38,14 +67,9 @@ for (const f of newFiles) {
   unlinkSync(join(DRIZZLE_DIR, f));
 }
 
-// drizzle-kit also rewrites drizzle/meta/_journal.json + the latest
-// snapshot when it runs. Roll those back too so a passing run leaves the
-// working tree clean.
-try {
-  execSync("git checkout -- drizzle/meta", { stdio: "pipe" });
-} catch {
-  // No git, or no changes — fine.
-}
+// drizzle-kit also rewrites drizzle/meta. Restore the exact pre-check state
+// instead of `git checkout` so legitimate uncommitted migrations survive.
+restoreMeta(beforeMeta);
 
 if (newFiles.length === 0) {
   console.log("schema in sync with migrations ✓");

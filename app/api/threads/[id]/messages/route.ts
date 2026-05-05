@@ -60,6 +60,7 @@ export async function POST(
 
   const authz = validateFanout({
     fanout: parsed.data.fanout,
+    senderRole: membership[0]?.role === "observer" ? "observer" : "participant",
     targetDevices,
     threadMemberUserIds: memberRows.map((m) => m.userId),
   });

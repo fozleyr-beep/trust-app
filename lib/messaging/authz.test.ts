@@ -22,6 +22,20 @@ describe("validateFanout", () => {
     expect(r.ok).toBe(true);
   });
 
+  test("403 when an observer tries to send", () => {
+    const r = validateFanout({
+      fanout: [{ recipientDeviceKeyId: "dev-peer" }],
+      senderRole: "observer",
+      targetDevices: [peerDevice],
+      threadMemberUserIds: [me, peer],
+    });
+    expect(r).toEqual({
+      ok: false,
+      status: 403,
+      error: "observer members cannot send messages",
+    });
+  });
+
   test("400 when fanout is empty", () => {
     const r = validateFanout({
       fanout: [],

@@ -13,9 +13,9 @@
     "No sensitive Android permissions requested."
   ],
   "assetChecklist": {
-    "appIcon512": "source: mobile/assets/sakinah-icon.svg",
-    "adaptiveIcon": "source: mobile/assets/sakinah-icon.svg",
-    "featureGraphic1024x500": "source: mobile/assets/feature-graphic.svg",
+    "appIcon512": "source: mobile/assets/sakinah-icon.png",
+    "adaptiveIcon": "source: mobile/assets/adaptive-icon.png",
+    "featureGraphic1024x500": "source: mobile/assets/feature-graphic.png",
     "phoneScreenshots": "plan: mobile/store/screenshot-plan.md",
     "sevenInchTabletScreenshots": "not planned for first release",
     "tenInchTabletScreenshots": "not planned for first release"
