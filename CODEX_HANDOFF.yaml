@@ -1,0 +1,624 @@
+# trust-app — Codex Handoff
+#
+# A self-contained briefing for ChatGPT Codex (or any cloud-based coding
+# agent) to pick up `trust-app` and carry it forward. Read top to bottom.
+# Every section is meant to stand on its own; cross-references point at
+# files in the repo, not external systems.
+#
+# This file is safe to share publicly: secrets are never inlined, only
+# their location and how to retrieve them.
+
+# ─── Header ────────────────────────────────────────────────────────────
+meta:
+  project: trust-app
+  one_line: >-
+    End-to-end encrypted messaging product with a separate Claude
+    assistant. The /trust page documents the contract; tests + CSP +
+    schema all enforce it.
+  handoff_to: chatgpt-codex
+  handoff_from: claude-code (Opus 4.7, 1M context)
+  handoff_date: 2026-05-05
+  current_pr: 27 (live deploy verified)
+  commits_on_main: 35
+  primary_language: TypeScript (strict)
+  build_status: green (typecheck + 38 vitest tests + bundle budget + db:check)
+
+repo:
+  url: https://github.com/fozleyr-beep/trust-app
+   visibility: public
+  default_branch: main
+  ci: GitHub Actions (.github/workflows/ci.yml) on push + PR
+
+production:
+  url: https://trust-app-three.vercel.app
+  status: READY
+  surface_verified:
+    - "GET /            → 307 → /trust"
+    - "GET /trust       → 200 (CSP + HSTS + Permissions-Policy)"
+    - "GET /sign-in     → 200 (Clerk-hosted UI)"
+    - "GET /sign-up     → 200"
+    - "GET /api/health  → {ok: true, ts: <iso>}"
+    - "GET /app         → 307 to /sign-in?redirect_url=… (auth gate)"
+  surface_pending:
+    - "/api/agent — needs ANTHROPIC_API_KEY in Vercel; returns 500 today"
+    - "/api/webhooks/clerk — works once CLERK_WEBHOOK_SECRET added; lazy-backfill covers v1"
+
+# ─── Read these first ──────────────────────────────────────────────────
+critical_reads:
+  order:
+    - path: README.md
+      why: 5-minute orientation; setup + layout + the trust contract table
+    - path: DECISIONS.md
+      why: locked product/design/stack decisions; do not relitigate
+    - path: handoff.yaml
+      why: structural source of truth (tokens, schema, API, flows)
+    - path: CLAUDE_CODE_PROMPT.md
+      why: PR-by-PR history with commits; house style notes
+    - path: DEPLOY.md
+      why: production deploy runbook; Vercel + Neon + Clerk setup
+    - path: HANDOFF-pr27.yaml
+      why: session log for the deploy itself — known issues, workarounds
+    - path: SECURITY.md
+      why: disclosure scope, safe-harbor, response timelines
+
+  read_after_those:
+    - app/trust/page.tsx          # the contract that everything else defends
+    - lib/db/schema.ts            # ground-truth data model
+    - middleware.ts               # auth + CSP enforcement
+    - tests/agent-isolation.test.ts  # the load-bearing isolation guarantee
+
+# ─── Quickstart ────────────────────────────────────────────────────────
+quickstart:
+  fresh_clone:
+    - "git clone https://github.com/fozleyr-beep/trust-app.git"
+    - "cd trust-app"
+    - "cp .env.example .env.local"
+    - "# fill in: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY,"
+    - "#          CLERK_WEBHOOK_SECRET, DATABASE_URL, ANTHROPIC_API_KEY"
+    - "npm install"
+    - "set -a; source .env.local; set +a"
+    - "npm run doctor              # red lines = fix before continuing"
+    - "npx drizzle-kit migrate     # apply migrations to your Neon DB"
+    - "npm run typecheck && npm test && npm run build"
+    - "npm run dev                 # http://localhost:3000"
+
+  daily_loop:
+    - "npm run dev"
+    - "npm run typecheck            # before any commit"
+    - "npm test                     # before any PR"
+    - "npm run db:check             # if you touched lib/db/schema.ts"
+    - "npm run check:bundle         # if you added a dep or large component"
+
+  deploy:
+    - "git push                     # CI runs; on green, Vercel auto-deploys main"
+    - "Watch https://vercel.com/fozleyr-beeps-projects/trust-app/deployments"
+
+# ─── Outstanding work (priority order) ─────────────────────────────────
+outstanding:
+  immediate:
+    - title: Set ANTHROPIC_API_KEY in Vercel production
+      why: /api/agent route returns 500 without it; rest of app works.
+      commands: |
+        cd /Users/user/trust-app
+        printf '%s' "<anthropic-key>" | npx vercel@latest env add ANTHROPIC_API_KEY production
+        npx vercel@latest deploy --prod --yes
+      verify: "curl -X POST https://trust-app-three.vercel.app/api/agent ... should stream"
+
+    - title: Configure Clerk webhook + CLERK_WEBHOOK_SECRET
+      why: |
+        Lazy-backfill in lib/auth/current-user.ts is the v1 fallback.
+        Webhook is the canonical user-mirror sync.
+      blocker: |
+        Clerk's webhook UI uses a Svix iframe that didn't accept
+        page-level click automation in the deploy session. Set up
+        manually via the dashboard (~3 min).
+      manual_steps:
+        - "Open Clerk dashboard → Webhooks for app_3DGyGaZc5v47bXDEQiYZK1zIf1k"
+        - "+ Add Endpoint → URL = https://trust-app-three.vercel.app/api/webhooks/clerk"
+        - "Subscribe to: user.created, user.updated, user.deleted"
+        - "Save → copy the whsec_… signing secret"
+        - "printf '%s' '<whsec...>' | npx vercel@latest env add CLERK_WEBHOOK_SECRET production"
+        - "npx vercel@latest deploy --prod --yes"
+
+  before_public_launch:
+    - "Switch Clerk dev keys (pk_test_/sk_test_) to live keys (pk_live_/sk_live_); update Vercel env, redeploy"
+    - "Custom domain via Vercel → Domains; if domain changes, update Clerk webhook URL + middleware.ts CSP allowlist"
+    - "Anthropic billing — confirm a paid plan is attached if expecting any meaningful traffic"
+    - "Sentry (or equivalent) for client + server error capture — third-party decision; would need /trust copy update"
+    - "Spot-check the heaviest routes; bundle budget is enforced in CI but worth a one-off audit"
+
+  product_extensions:
+    no_decision_needed:
+      - title: Email-based thread invite when recipient hasn't signed up
+        notes: |
+          Adds a transactional-email third party (Resend or Postmark are
+          common). Update /trust copy to disclose the new third party
+          before shipping.
+      - title: Sender-key / MLS group state
+        notes: only worth it if scaling threads above ~10 members.
+      - title: Mobile-responsive review
+        notes: works at default widths; never explicitly tested below 375px.
+      - title: SSE → WebSocket migration if Vercel function-duration limits bite
+        notes: 1.5s server-side poll + EventSource is fine at v1 scale.
+
+    decision_required_first:
+      - title: Passphrase-wrapped key backup
+        decisions_md_says: "no key recovery, by choice"
+        change_required: yes
+      - title: Custom auth UI (Clerk Elements / hooks)
+        decisions_md_says: Clerk-hosted UI for v1
+        change_required: yes
+      - title: Read receipts / typing indicators
+        decisions_md_says: "no presence, no typing — privacy"
+        change_required: yes (and probably should not — this is a /trust pillar)
+
+# ─── Stack ─────────────────────────────────────────────────────────────
+stack:
+  framework: next@15.5.15 (App Router, typedRoutes, react@19)
+  language: typescript@5.7 strict
+  styling: tailwind@4 (CSS-first, @theme block in app/globals.css)
+  database: postgres on neon (@neondatabase/serverless HTTP driver)
+  orm: drizzle@0.36
+  auth: "@clerk/nextjs@6 (catch-all sign-in/up + svix-verified webhook)"
+  ai_sdk: "@anthropic-ai/sdk"
+  ai_model: claude-sonnet-4-5 (locked per DECISIONS.md)
+  crypto: tweetnacl (crypto_box: X25519 + XSalsa20-Poly1305)
+  validation: zod@4 (every API body)
+  tests: vitest@4
+  ci: github-actions
+  deploy: vercel (region iad1)
+
+  why_tweetnacl_not_libsodium: >-
+    libsodium-wrappers ships a broken ESM bundle and its package.json
+    `exports` blocks the CJS subpath, so Next 15 webpack cannot load it.
+    tweetnacl is the same crypto_box primitive, same wire format,
+    audited, with a clean ESM build. If you ever need libsodium audit
+    lineage specifically, switch to libsodium.js (the JS-only fork).
+    DECISIONS.md § Crypto primitive is locked on tweetnacl.
+
+# ─── Architecture (1-paragraph each) ───────────────────────────────────
+architecture:
+  three_surfaces:
+    /trust: >-
+      Public, server-rendered, no client JS, indexable. The contract
+      page. Pinned to a specific commit hash in the footer. Every claim
+      has a corresponding test or runtime guarantee elsewhere in the
+      codebase.
+    /app/threads/[id]: >-
+      End-to-end encrypted messaging. Each device generates an X25519
+      keypair in the browser, persists to IndexedDB (multi-generation
+      for rotation), and publishes the public half via /api/device-keys.
+      Sending fans out one ciphertext row per recipient device. Server
+      stores ciphertext, nonce, sender id, recipient device key id,
+      timestamp — never plaintext, never any decryption key.
+    /app/agent: >-
+      Server-mediated chat with Claude Sonnet 4.5. NOT end-to-end
+      encrypted — by design. The assistant is a separate conversational
+      surface. The /trust page discloses this; tests/agent-isolation.test.ts
+      asserts the agent route cannot import messaging schema.
+
+  why_per_device_fanout_not_mls: >-
+    Simpler to reason about for v1. Trades server storage (one row per
+    recipient device per send) for cryptographic clarity. Above ~10
+    members the fanout cost gets serious; that's the threshold for
+    revisiting a sender-key / MLS design.
+
+# ─── Data model ────────────────────────────────────────────────────────
+# Source of truth: lib/db/schema.ts. Migrations: drizzle/0000_init.sql,
+# drizzle/0001_messaging.sql.
+data_model:
+  users:
+    fields: [id (uuid), clerk_id (unique), email, created_at, updated_at, deleted_at]
+    notes: mirrored from Clerk via /api/webhooks/clerk; lazy-backfilled by lib/auth/current-user.ts on first authed request.
+
+  device_keys:
+    fields: [id (uuid), user_id (fk), device_id, public_key (bytea), created_at, revoked_at]
+    indexes: [(user_id, device_id)]
+    notes: |
+      Secret half NEVER on server. Rotation = new row + prior row(s)
+      for same (user_id, device_id) get revoked_at.
+
+  threads:
+    fields: [id (uuid), created_by (fk users), created_at]
+    notes: no subject/title server-side; that's part of the encrypted stream.
+
+  thread_members:
+    pk: (thread_id, user_id)
+    fields: [thread_id (fk), user_id (fk), added_at]
+
+  messages:
+    fields: [id (uuid), thread_id (fk), sender_id (fk users), recipient_device_key_id (fk device_keys), ciphertext (bytea), nonce (bytea), cipher_size, sent_at]
+    indexes: [(thread_id, sent_at), (recipient_device_key_id)]
+    notes: |
+      One row per (recipient device) per send. Server holds zero
+      plaintext and no key that decrypts these.
+
+# ─── API surface ───────────────────────────────────────────────────────
+# Wire schemas are in lib/api/schemas.ts (Zod) and routed via
+# app/api/**/route.ts.
+api:
+  public:
+    GET /:                    redirects to /trust
+    GET /trust:               static (○), public, indexable
+    GET /sign-in/* :          Clerk-hosted UI
+    GET /sign-up/* :          Clerk-hosted UI
+    GET /api/health:          { ok, ts }
+    POST /api/webhooks/clerk: svix-verified; user.created/updated/deleted
+
+  authed:
+    GET /app:                 dashboard (lists 4 surfaces)
+    GET /app/agent:           Claude assistant
+    GET /app/settings:        fingerprint, rotate, export, sign-out, delete
+    GET /app/threads:         list (with peer emails)
+    GET /app/threads/new:     form → createThread server action
+    GET /app/threads/[id]:    thread (Composer + MessageStream + PeerFingerprints)
+
+    POST /api/device-keys:                  register/rotate device pubkey (revokes prior)
+    POST /api/sender-keys:                  fetch peer pubkeys for verify+open
+    GET  /api/threads/[id]/recipient-keys:  active member device pubkeys
+    POST /api/threads/[id]/messages:        write fanout (one row per device); membership-checked
+    GET  /api/threads/[id]/messages:        history fetch (pagination cap 200)
+    GET  /api/threads/[id]/stream:          SSE; 1.5s server-side poll; resumes via Last-Event-ID
+    GET  /api/me/threads:                   own thread metadata
+    POST /api/me/delete:                    revoke keys + soft-delete user + Clerk admin delete
+    POST /api/agent:                        Anthropic Sonnet 4.5 streaming; rate-limited 6/min/user
+
+# ─── Flows ─────────────────────────────────────────────────────────────
+flows:
+  first_sign_in: >-
+    Clerk-hosted /sign-in → /app → DeviceBootstrap generates X25519
+    keypair in browser → persisted to IndexedDB → POSTed to /api/device-keys.
+    If Clerk webhook hasn't fired yet, requireDbUser() creates the
+    users row from currentUser() on first protected request.
+
+  send_encrypted_message: >-
+    Composer dispatches `trust-app:optimistic-send` → MessageStream
+    renders state="sending" at ~0ms perceived latency → client GETs
+    recipient-keys → encrypts once per recipient device →
+    POSTs fanout. Server validates each recipientDeviceKeyId belongs
+    to a current thread member (lib/messaging/authz.ts; 6 unit tests).
+    SSE delivers the canonical row in ~1.5s; MessageStream replaces
+    the optimistic entry by matching senderId + plaintext.
+
+  ask_assistant: >-
+    AgentChat POSTs full conversation history → /api/agent rate-limit
+    gate → Zod validate → Anthropic Sonnet 4.5 streaming → server
+    streams text deltas → client appends. Server logs token usage +
+    latency on completion (agent.completed event).
+
+  rotate_device_key: >-
+    /app/settings → Rotate → keystore.rotateDevice() generates fresh
+    keypair under same deviceId, appends to IndexedDB → POST /api/device-keys
+    (server revokes prior, inserts new). Old keypairs stay in
+    IndexedDB for past-message decryption.
+
+  account_delete: >-
+    /app/settings → type DELETE → POST /api/me/delete → server revokes
+    every device_key for the user → soft-deletes users row → hard-deletes
+    from Clerk via admin API → client wipes IndexedDB → redirect to /.
+
+# ─── Tests ─────────────────────────────────────────────────────────────
+tests:
+  total: 38 across 6 files
+  by_file:
+    - lib/crypto/messaging.test.ts (5)
+    - tests/agent-isolation.test.ts (6 — 1 presence + 5 forbidden patterns)
+    - lib/messaging/authz.test.ts (6)
+    - lib/messaging/recipients.test.ts (8)
+    - lib/api/rate-limit.test.ts (6)
+    - scripts/lib/parse-build-output.test.ts (7)
+
+  load_bearing:
+    - file: lib/crypto/messaging.test.ts
+      asserts: |
+        Encryption round-trip (Alice↔Bob), wrong-key rejection,
+        ciphertext tamper detection, nonce uniqueness. Locks the
+        cryptographic claim on /trust.
+    - file: tests/agent-isolation.test.ts
+      asserts: |
+        Files in app/api/agent/ do not import schema.messages,
+        schema.threads, schema.threadMembers, schema.deviceKeys, or
+        @/lib/db/threads. Locks the "assistant cannot read messages
+        between people" claim on /trust.
+    - file: lib/messaging/authz.test.ts
+      asserts: |
+        Fanout authz rejects unknown device keys, non-member device
+        keys (the exfiltration attempt), duplicates. Locks PR-08's
+        runtime authz check.
+
+ci_gates:
+  on: every push and pull_request
+  steps:
+    - npm ci
+    - npm run typecheck
+    - npm run db:check       # Drizzle schema vs. committed migrations
+    - npm test               # vitest, 38 tests
+    - npm run check:bundle   # next build + per-route 200 KB / 130 KB shared
+  bundle_budget:
+    per_route_first_load_kb: 200
+    shared_chunks_kb: 130
+    current_high_water:
+      - "/app/settings: 160 kB"
+      - "/sign-in, /sign-up: 142 kB"
+
+# ─── Secrets & env vars ────────────────────────────────────────────────
+# Values are NEVER stored in this file. Refer to the retrieval section
+# below for where each one lives.
+env_vars:
+  required:
+    - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+    - CLERK_SECRET_KEY
+    - DATABASE_URL
+    - ANTHROPIC_API_KEY
+  recommended:
+    - CLERK_WEBHOOK_SECRET
+    - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+    - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+    - NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/app
+    - NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/app
+
+  retrieval:
+    clerk_keys: "Clerk dashboard (https://dashboard.clerk.com) → trust-app → Configure → API keys. Secret needs eye-toggle to reveal; or hook navigator.clipboard.writeText before clicking the copy button."
+    neon_database_url: |
+      neonctl connection-string --project-id odd-scene-06932368
+      (or Neon dashboard → trust-app → Connection Details → Pooled)
+    anthropic_api_key: "https://console.anthropic.com → API Keys"
+    clerk_webhook_secret: "Clerk dashboard → Webhooks → endpoint → signing secret"
+
+  on_vercel_production:
+    set_count: 7
+    missing: [ANTHROPIC_API_KEY, CLERK_WEBHOOK_SECRET]
+
+  local:
+    file: .env.local (gitignored)
+    template: .env.example
+
+# ─── Deploy infrastructure ─────────────────────────────────────────────
+infrastructure:
+  vercel:
+    project: fozleyr-beeps-projects/trust-app
+    framework: nextjs
+    region: iad1                       # Washington DC = AWS us-east-1
+    git_connected: true
+    auto_deploy: pushes to main
+    cli: "npx vercel@latest" (no global install needed)
+
+  database:
+    provider: neon
+    org_id: org-small-forest-90966463
+    project_id: odd-scene-06932368
+    project_name: trust-app
+    region_id: aws-us-east-1            # matches Vercel iad1
+    pg_version: 17
+    schema_applied: true
+    cli: "npx neonctl"
+    apply_migrations: |
+      set -a; source .env.local; set +a
+      npx drizzle-kit migrate           # NOT db:push (interactive prompt is unreliable)
+
+  auth:
+    provider: clerk
+    workspace: Personal (Hobby tier)
+    app_id: app_3DGyGaZc5v47bXDEQiYZK1zIf1k
+    instance_id: ins_3DGyGajfAC0K5nb4NEI68laQD0d
+    mode: development                   # pk_test_/sk_test_; switch before public launch
+    frontend_api: https://polite-grub-89.clerk.accounts.dev
+    sign_in_methods: [email]            # google/github/etc disabled — tighter third-party set
+
+# ─── Conventions (do this) ─────────────────────────────────────────────
+do:
+  - "One concept per PR. A PR that says 'and also' is two PRs."
+  - "Build/typecheck/test green at every commit. No WIP commits on main."
+  - "When adding a guess, mark it inline: `// ASSUMPTION: …` with enough context that `grep -rn ASSUMPTION` is a complete reconciliation list."
+  - "Tests over docs. Where a decision is load-bearing (encryption round-trip, agent isolation, fanout authz), write a test that fails the build if the property breaks."
+  - "Type the boundaries. Zod at every API body. Drizzle inferred types at every DB call. Don't trust shapes from JSON.parse() ever."
+  - "Server-rendered first. Client components only where encryption (or IndexedDB, or live streaming) requires it."
+  - "Restraint over ornament — applies to copy and visuals on /trust and /app/*, not just the brand."
+
+# ─── Conventions (don't do this) ───────────────────────────────────────
+do_not:
+  - "Don't relitigate locked decisions. If something is in DECISIONS.md without GUESSED, it doesn't open up in the PR."
+  - "Don't swap tweetnacl for libsodium-wrappers. The latter has a broken ESM bundle; this was already debugged in PR-04."
+  - "Don't add any third-party script that lands in the browser without first updating /trust to disclose it AND amending the CSP allowlist in middleware.ts. /trust says 'no third-party analytics, no marketing pixels, no session-replay' and the CSP enforces that."
+  - "Don't import schema.messages / schema.threads / schema.threadMembers / schema.deviceKeys / @/lib/db/threads from anywhere under app/api/agent/. tests/agent-isolation.test.ts will fail the build if you do."
+  - "Don't store any user-to-user message plaintext on the server. Don't store any key that decrypts user-to-user messages. The schema enforces this; don't add columns that walk it back."
+  - "Don't write to .env.local or commit it. Don't paste real secrets into any committed file."
+  - "Don't run `npm run db:push` for first-time prod schema apply — the interactive inquirer prompt is unreliable. Use `npx drizzle-kit migrate` instead. (db:push is fine for local-dev iteration.)"
+  - "Don't bypass the CI gates by skipping or relaxing them; fix the underlying problem instead."
+  - "Don't add comments that just restate the code. Comments should explain WHY or describe a non-obvious invariant."
+  - "Don't add emoji to source files. Anywhere."
+
+# ─── Locked decisions ──────────────────────────────────────────────────
+# Source of truth: DECISIONS.md. All 20 originally-GUESSED decisions
+# were locked in PR-12 (Pass A and Pass B). Highlights:
+locked_decisions:
+  reference: DECISIONS.md
+  highlights:
+    - "Stack: Next 15 + Tailwind v4 + Drizzle/Neon + Clerk + Anthropic Sonnet 4.5 + tweetnacl"
+    - "Three product surfaces: /trust (public marketing), /app/threads (E2E), /app/agent (server-mediated)"
+    - "Per-device fanout encryption (one ciphertext row per recipient device per send), NOT MLS / sender-key"
+    - "Multi-generation device keys; rotation appends, server revokes; old generations stay locally for past-message decrypt"
+    - "Key recovery: NONE, by choice. Clearing IndexedDB = losing the device. /trust says so."
+    - "Fingerprint verification: first 16 pubkey bytes hex-grouped, in /app/settings + thread page header"
+    - "1:1 threads not deduped server-side; group threads cap at 10 members"
+    - "Agent rate limit: 6 req/min/user"
+    - "Agent system prompt: minimal restraint — locked in lib/ai/client.ts"
+    - "User mirror: id + primary email only"
+    - "Account delete: keeps thread_members + message ciphertext (other members still need them); soft-deletes users; hard-deletes from Clerk"
+    - "Single-region Neon (iad1 / us-east-1)"
+    - "MIT license; repo public; disclosure email fozleyr@gmail.com"
+    - "Clerk-hosted UI (custom UI is a later track)"
+    - "No sealed-sender — sender id is on the row by design (used for membership authz)"
+    - "Real-time delivery via SSE (server polls 1.5s, EventSource resumes via Last-Event-ID)"
+    - "Optimistic composer UX: render at ~0ms, replace by senderId + plaintext match when SSE delivers"
+    - "Decrypt-fail visibility: render placeholder, don't drop"
+    - "Strict CSP with per-request nonce (middleware.ts); enforces no-third-party-script"
+    - "Bundle budget: 200 KB First Load JS per route, 130 KB shared chunks; CI-enforced"
+
+# ─── Assets / design ───────────────────────────────────────────────────
+assets:
+  visual_identity:
+    status: placeholder (ink-on-paper)
+    locked: false
+    location: app/globals.css `@theme` block + tokens mirrored in handoff.yaml
+    palette:
+      ink: "#0e0f10"
+      ink-soft: "#2a2c2f"
+      ink-muted: "#5a5d63"
+      paper: "#fafaf7"
+      rule: "#e6e4dc"
+      accent: "#6b3f2a"
+    fonts:
+      sans: ui-sans-serif system stack
+      serif: ui-serif Iowan Old Style stack (used for headings)
+      mono: ui-monospace SFMono stack (used for fingerprints, labels, codes)
+    notes: |
+      Brand palette is intentionally a later track. /trust is restrained
+      by design — that aesthetic is content-driven (typography +
+      whitespace), not asset-driven. There are no logo files, no SVG
+      illustrations, no brand graphics committed.
+
+  brand_assets:
+    logo: none
+    illustrations: none
+    icons: native unicode (no icon library)
+    photos: none (deliberate per /trust restraint)
+
+  copy:
+    register: restrained, plain language, second-person "you"
+    voice_examples:
+      - "What we hold. What we don't."
+      - "This page is the contract. If something below it diverges from what this page says, this page wins until we update it."
+      - "We will not pursue legal action against good-faith research."
+
+  screens_designed:
+    /trust: 6 sections (E2E claim, what we hold, what AI sees, how to verify, where data lives, disclosure)
+    /app: dashboard, 4 link tiles to threads/agent/settings/trust
+    /app/threads: list with peer-email-derived titles
+    /app/threads/new: textarea for comma-separated emails (cap 10 members)
+    /app/threads/[id]: peer fingerprints (collapsible) + message stream + composer
+    /app/agent: assistant chat with disclosure copy linking to /trust
+    /app/settings: fingerprint, rotate (with confirm), export, sign-out, delete (with type-DELETE confirm)
+    /sign-in /sign-up: Clerk-hosted (no custom design)
+
+  screens_not_designed:
+    - Any mobile-specific layouts (works at default but not explicitly responsive-tested below 375px)
+    - Marketing page beyond /trust
+    - Onboarding flow beyond Clerk
+    - Empty states beyond what's shipped
+    - 404 / error pages beyond Next defaults
+
+# ─── Known issues / gotchas ────────────────────────────────────────────
+gotchas:
+  - id: drizzle-kit-push-interactive
+    description: "`drizzle-kit push` uses an inquirer prompt; piped stdin doesn't always work. db:check can pass while migrations weren't actually applied."
+    fix: Use `drizzle-kit migrate` for prod schema apply (applies committed drizzle/*.sql files). db:push is OK for local dev iteration.
+
+  - id: drizzle-kit-no-dotenv
+    description: "drizzle-kit doesn't auto-load .env.local; DATABASE_URL must be in the process env."
+    fix: "set -a; source .env.local; set +a" before any drizzle-kit command.
+
+  - id: clerk-secret-key-clipboard-only
+    description: "Clerk secret key never appears in DOM as plaintext (input.value is masked); only retrievable via clipboard."
+    fix: |
+      Use the Clerk dashboard's copy button. If you need to capture
+      programmatically, hook navigator.clipboard.writeText before
+      clicking — see HANDOFF-pr27.yaml for the pattern.
+
+  - id: clerk-webhook-iframe
+    description: "Clerk's webhook UI is a Svix iframe; cross-origin click events from Chrome MCP don't reliably reach the 'Add Endpoint' button."
+    fix: Configure the webhook manually in the Clerk dashboard (~3 min).
+
+  - id: github-pat-workflow-scope
+    description: "Pushing .github/workflows/*.yml requires the `workflow` PAT scope. Without it, `git push` is rejected by GitHub even if `repo` scope is set."
+    fix: |
+      Add the workflow scope to the PAT at github.com/settings/tokens.
+      GitHub requires sudo-mode (email verification) to edit token
+      scopes — this is the explicit human-in-the-loop gate.
+
+  - id: vercel-region-name
+    description: "Vercel uses `iad1` for Washington DC; this maps to AWS `us-east-1`, not `us-east-2`. Easy to mis-type in DEPLOY.md."
+    fix: "iad1 ≡ us-east-1 (N. Virginia). Confirmed in handoff.yaml and HANDOFF-pr27.yaml."
+
+  - id: libsodium-wrappers-broken-esm
+    description: "libsodium-wrappers ships a broken ESM bundle and its package.json `exports` field blocks the CJS subpath — Next 15 webpack cannot load it."
+    fix: "We use tweetnacl. Don't try libsodium-wrappers; if you need libsodium audit lineage, switch to libsodium.js (the JS-only fork)."
+
+# ─── Codex-specific tips ───────────────────────────────────────────────
+codex_notes:
+  user_preferences_observed:
+    - "Terse responses preferred — drop trailing summaries unless useful."
+    - "Autonomous action preferred. 'next' usually means 'execute the highest-EV thing', not 'list options'."
+    - "User course-corrects via short messages. Listen for them; don't ask for permission on reversible work."
+    - "Account/credentials are real boundaries — don't pretend you can sign up for services or bypass OAuth. Surface honestly and stop."
+
+  user_environment:
+    os: macOS Darwin 25.3.0
+    shell: zsh
+    node: v24.15.0 (npm 11.x)
+    git_user: fozleyr-beep <fozleyr@gmail.com>
+    has_no: [homebrew, gh-cli, vercel-cli-globally]
+    has_via_npx: [neonctl, vercel, drizzle-kit]
+    has_mcp: [chrome-extension, computer-use]
+
+  reversible_actions_codex_can_take_freely:
+    - file edits, new files, refactors
+    - `git commit`, `git push origin main` (PAT is configured)
+    - `npm install <dep>` (deps land in package.json + lockfile, reviewable)
+    - `npx drizzle-kit generate` (creates migration; reviewable)
+    - `npm run dev` / `npm run build` / `npm test`
+    - vercel deploy (auto-deploys on push)
+
+  irreversible_actions_codex_must_confirm:
+    - `git push --force` to main
+    - `git reset --hard` on a branch with uncommitted work
+    - dropping or destructive ALTER on Neon (manual SQL)
+    - rotating Clerk keys (invalidates all sessions)
+    - rotating the Anthropic key
+    - sending email to real users
+    - changing Vercel project visibility / billing
+    - deleting the GitHub repo / changing visibility
+
+# ─── How to extend (add a feature without compounding debt) ────────────
+how_to_extend:
+  before_starting:
+    - "Re-read DECISIONS.md to confirm the feature isn't already locked-out."
+    - "If it requires reopening a locked decision, that's a separate PR that updates DECISIONS.md FIRST. Don't bundle decision-reopen with implementation."
+    - "Sketch the wire format and DB shape. If new tables, add them to lib/db/schema.ts and run `npx drizzle-kit generate`."
+    - "Identify the load-bearing property and write a test that fails the build if it breaks."
+
+  during_the_PR:
+    - "One concept. If you find yourself writing 'and also', stop and split."
+    - "ASSUMPTION-flag any guess inline."
+    - "Add Zod schemas in lib/api/schemas.ts; never accept JSON.parse output without parsing."
+    - "Update handoff.yaml structurally and DECISIONS.md if a new behavior is now locked."
+    - "Bump the bundle budget in scripts/check-bundle-budget.ts ONLY if you're deliberately accepting the cost; document in the commit message."
+
+  before_merging:
+    - "npm run typecheck && npm run db:check && npm test && npm run check:bundle — all must be green."
+    - "git push; CI reproduces the same gates; Vercel auto-deploys main."
+    - "If you changed CSP, /trust copy, or schema — verify the live URL after deploy."
+
+# ─── What this scaffold is NOT ─────────────────────────────────────────
+# Listed for clarity so the gap is visible, not as TODOs.
+not_in_scope:
+  - "Read receipts, presence, typing indicators (deliberately — privacy)"
+  - "Search across encrypted messages (no server-side index possible)"
+  - "Group threads larger than ~10 (per-device fanout grows linearly; createThread enforces this cap)"
+  - "Mobile native apps (web only)"
+  - "Voice / video"
+  - "Federation / interop with Signal, Matrix, MLS"
+  - "Email transactional layer (no Resend / Postmark integration; thread invites require the recipient to have signed up first)"
+  - "Multi-tenancy / workspaces"
+  - "Admin console / impersonation"
+  - "Public moderation tooling (would conflict with E2E)"
+
+# ─── Glossary ──────────────────────────────────────────────────────────
+glossary:
+  device_key: An X25519 keypair generated in the browser. The "device" is the browser/IndexedDB pair; one user can have multiple.
+  fanout: One ciphertext message produces N rows (one per recipient device) on send. The server sees ciphertext; the recipient's device sees plaintext after decrypt.
+  ASSUMPTION: Inline-comment marker on a guess that needs human reconciliation. Currently zero in the codebase (PR-12 cleared them all).
+  GUESSED: Same idea at the decision layer, in DECISIONS.md. Currently zero — all 20 are locked.
+  /trust: The product's contract page. The page wins over implementation in spirit; tests + CSP + schema win in practice.
+
+# ─── End ───────────────────────────────────────────────────────────────

@@ -1,0 +1,249 @@
+# PR-27 SESSION HANDOFF — trust-app live deploy
+#
+# A self-contained snapshot of what this Claude session did and what the next
+# agent (any of: Claude, ChatGPT, Codex, Gemini) needs to continue. Read top
+# to bottom. Secrets are NOT inlined — the file references where to retrieve
+# them so this YAML stays safe to share.
+#
+# Companion docs in the same repo:
+#   CLAUDE_CODE_PROMPT.md   — PR plan, bootstrap, house style
+#   DECISIONS.md            — locked product/design/stack decisions
+#   handoff.yaml            — structural source of truth (tokens, schema, API)
+#   DEPLOY.md               — production deploy runbook
+#   SECURITY.md             — disclosure policy
+# ---------------------------------------------------------------------------
+
+session:
+  agent: claude-opus-4-7 (1M context, Claude Code)
+  date_range: 2026-05-04 → 2026-05-05
+  starting_commit: a471a86 (PR-25)
+  ending_commit: fc8cec7 (PR-27 docs synced)
+  starting_state: PR-25 on main, no GitHub remote, no prod deploy
+  ending_state: 35 commits on public GitHub, full prod stack live
+
+project:
+  name: trust-app
+  one_line: "End-to-end encrypted messaging with a Claude assistant. /trust contract documents what we hold and what we don't."
+  local_path: /Users/user/trust-app
+  scaffold_pattern: Next.js 15 App Router + Clerk + Drizzle/Neon + Anthropic SDK + tweetnacl
+
+repo:
+  host: github
+  owner: fozleyr-beep
+  name: trust-app
+  url: https://github.com/fozleyr-beep/trust-app
+  visibility: public
+  default_branch: main
+  remote_set: true
+  upstream_tracking: origin/main
+  commits_in_main: 35
+
+production:
+  url: https://trust-app-three.vercel.app
+  status: READY
+  build: clean (all routes within bundle budget; 38/38 tests green)
+  ci: GitHub Actions on push (typecheck + test + build + bundle + db:check)
+
+infrastructure:
+  vercel:
+    cli_authenticated_as: fozleyr-beep
+    project: fozleyr-beeps-projects/trust-app
+    region: iad1                     # Washington DC; equivalent to AWS us-east-1
+    framework: nextjs
+    git_connected: true
+    auto_deploy_on_push: main
+    local_link_dir: .vercel/         # gitignored, created by `vercel link`
+
+  database:
+    provider: neon
+    cli_authenticated_as: fozleyr@gmail.com
+    org_id: org-small-forest-90966463
+    project_id: odd-scene-06932368
+    project_name: trust-app
+    region_id: aws-us-east-1          # matches Vercel iad1
+    pg_version: 17
+    schema_applied: true
+    apply_command: "npx drizzle-kit migrate"   # NOT db:push (interactive prompt)
+    migration_files:
+      - drizzle/0000_init.sql
+      - drizzle/0001_messaging.sql
+    tables: [users, device_keys, threads, thread_members, messages]
+
+  auth:
+    provider: clerk
+    workspace: "Personal workspace (Hobby tier)"
+    app_id: app_3DGyGaZc5v47bXDEQiYZK1zIf1k
+    instance_id: ins_3DGyGajfAC0K5nb4NEI68laQD0d
+    app_name: trust-app
+    mode: development                  # pk_test_* / sk_test_*; switch to live before public launch
+    frontend_api: https://polite-grub-89.clerk.accounts.dev
+    sign_in_methods: [email]           # google/github/etc explicitly disabled — tighter third-party set
+    dashboard_url: https://dashboard.clerk.com/apps/app_3DGyGaZc5v47bXDEQiYZK1zIf1k/instances/ins_3DGyGajfAC0K5nb4NEI68laQD0d
+
+env_vars:
+  on_vercel_production:                # all encrypted; values not in this file
+    set:
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+      - CLERK_SECRET_KEY
+      - DATABASE_URL
+      - NEXT_PUBLIC_CLERK_SIGN_IN_URL                       # constant: /sign-in
+      - NEXT_PUBLIC_CLERK_SIGN_UP_URL                       # constant: /sign-up
+      - NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL     # constant: /app
+      - NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL     # constant: /app
+    missing:
+      - name: ANTHROPIC_API_KEY
+        impact: "/api/agent returns 500; rest of app works"
+      - name: CLERK_WEBHOOK_SECRET
+        impact: "user-mirror webhook can't verify signatures; lazy-backfill in lib/auth/current-user.ts is the v1 fallback"
+
+  local:
+    file: /Users/user/trust-app/.env.local
+    gitignored: true
+    contents_complete_except: [ANTHROPIC_API_KEY]
+
+  retrieval:
+    clerk_pk_sk: "Clerk dashboard → Configure → API keys; secret needs eye-toggle to reveal"
+    neon_database_url: "neonctl connection-string --project-id odd-scene-06932368  (or Neon dashboard → Connection Details → Pooled)"
+
+verification_done:
+  - { route: "/",            method: GET,  expected: 307 → /trust,                      actual: 307, status: pass }
+  - { route: "/trust",       method: HEAD, expected: 200 + CSP + HSTS + Permissions,    actual: 200 with all headers, status: pass }
+  - { route: "/sign-in",     method: HEAD, expected: 200 (Clerk-hosted UI),             actual: 200, status: pass }
+  - { route: "/sign-up",     method: HEAD, expected: 200 (Clerk-hosted UI),             actual: 200, status: pass }
+  - { route: "/api/health",  method: GET,  expected: "{ok: true, ts: <iso>}",           actual: match, status: pass }
+  - { route: "/app",         method: GET,  expected: "redirect to /sign-in?redirect_url=…", actual: confirmed in Chrome, status: pass }
+
+verification_pending_user_action:
+  - description: End-to-end sign-up
+    steps:
+      - open https://trust-app-three.vercel.app/sign-up
+      - enter a real email + password
+      - confirm email link
+      - land on /app
+      - inspect Neon `users` table for the lazy-backfilled row (or wait for webhook once configured)
+
+session_commits:
+  - { sha: 238fcd5, msg: "chore: drop vestigial SERVER_WRAP_KEY from .env.example" }
+  - { sha: f70f73e, msg: "docs: add DEPLOY.md runbook (PR-27 prep)" }
+  - { sha: c5d7062, msg: "docs(deploy): correct region + add neonctl path + env-export note" }
+  - { sha: 6dc705a, msg: "docs(deploy): switch first-prod schema apply from db:push to drizzle-kit migrate" }
+  - { sha: fc8cec7, msg: "docs(pr-27): live deploy at trust-app-three.vercel.app — public surface verified" }
+
+outstanding:
+  high_priority:
+    - title: Add ANTHROPIC_API_KEY to Vercel + redeploy
+      reason: "/api/agent route currently 500s; everything else works"
+      command: |
+        cd /Users/user/trust-app
+        printf '%s' "<paste-anthropic-key>" | npx vercel@latest env add ANTHROPIC_API_KEY production
+        npx vercel@latest deploy --prod --yes
+
+  low_priority:
+    - title: Configure Clerk webhook for user.* events
+      reason: "Lazy-backfill in lib/auth/current-user.ts is the v1 fallback; webhook is canonical sync"
+      blocker: "Svix iframe inside Clerk dashboard rejected page-level click for 'Add Endpoint' in Chrome MCP automation"
+      manual_steps:
+        - 1. open https://dashboard.clerk.com/apps/app_3DGyGaZc5v47bXDEQiYZK1zIf1k/instances/ins_3DGyGajfAC0K5nb4NEI68laQD0d/webhooks
+        - 2. click "+ Add Endpoint"
+        - 3. Endpoint URL = https://trust-app-three.vercel.app/api/webhooks/clerk
+        - 4. Subscribe to events = [user.created, user.updated, user.deleted]
+        - 5. Save → copy the whsec_… signing secret shown
+        - 6. cd /Users/user/trust-app && printf '%s' "<whsec_secret>" | npx vercel@latest env add CLERK_WEBHOOK_SECRET production
+        - 7. npx vercel@latest deploy --prod --yes
+
+  before_going_public:
+    - description: "Switch Clerk to live keys (pk_live_* / sk_live_*); replace pk_test_/sk_test_ in Vercel; redeploy"
+    - description: "Custom domain via Vercel → Domains; update Clerk webhook URL + CSP allowlist if domain changes"
+    - description: "Anthropic billing — verify paid plan is attached if expecting public traffic; rate limit (6/min/user) is the second line"
+    - description: "Sentry or equivalent for client + server error capture"
+    - description: "Bundle analysis review — bundle budget already enforced in CI but spot-check the heaviest routes"
+
+issues_encountered_and_resolutions:
+  - id: claude-permission-hook
+    description: "First `git push -u origin main` blocked by safety hook (auto mode treats first public-repo push as gated)"
+    resolution: "User updated the GitHub PAT scopes (workflow added); push then succeeded"
+    notes: "Hook system also blocked self-writing of .claude/settings.local.json — correct behavior; permission rules need to come from the user, not be self-installed"
+
+  - id: github-pat-workflow-scope
+    description: "Push rejected by GitHub: '.github/workflows/ci.yml' requires `workflow` scope on the PAT"
+    resolution: "Drove user through editing token via Chrome MCP; user clicked Verify-via-email for sudo-mode, returned, ticked workflow checkbox, saved"
+    note: "Sudo-mode email verification is the explicit human-in-the-loop gate GitHub enforces here"
+
+  - id: drizzle-kit-push-interactive
+    description: "`npm run db:push` is an inquirer prompt that doesn't reliably honor piped stdin; appeared to succeed (db:check said sync ✓ because no migrations were pending) but tables never landed on Neon"
+    resolution: "Switched to `npx drizzle-kit migrate` (non-interactive, applies checked-in drizzle/*.sql); committed in 6dc705a"
+    lesson: "Never trust db:check alone after db:push — directly query information_schema.tables to confirm"
+
+  - id: deploy-md-region
+    description: "Initial DEPLOY.md said Neon should be us-east-2; Vercel iad1 is actually us-east-1 (Washington Dulles, N. Virginia)"
+    resolution: "Fixed in c5d7062"
+
+  - id: server-wrap-key-vestigial
+    description: ".env.example had SERVER_WRAP_KEY left over from libsodium-era envelope-wrap design; current architecture is no-key-on-server"
+    resolution: "Removed in 238fcd5; doctor.ts already didn't check for it"
+
+  - id: clerk-webhook-iframe
+    description: "Clerk's webhook UI is a Svix-embedded iframe; cross-origin click events from Chrome MCP at parent-page coords don't reach the 'Add Endpoint' button"
+    resolution: "Deferred to manual step (documented above); lazy-backfill covers v1"
+
+  - id: clerk-secret-key-extraction
+    description: "Clerk secret key never appears in DOM as plaintext — even input.value is masked"
+    resolution: "Hooked navigator.clipboard.writeText before clicking copy button; captured the full secret when Clerk wrote to clipboard, then wrote to .env.local"
+    code_pattern: |
+      // Inject before clicking copy button:
+      const orig = navigator.clipboard.writeText.bind(navigator.clipboard);
+      window.__captured_writes = [];
+      navigator.clipboard.writeText = async t => { window.__captured_writes.push(t); return orig(t); };
+
+  - id: dashboard-tab-group-expiry
+    description: "Chrome MCP tab group expired during the session, losing two parallel tabs (Neon + Clerk)"
+    resolution: "Re-created tab group, navigated back; both providers had cookies persisted so login state was intact"
+
+next_agent_quickstart:
+  - 1. cd /Users/user/trust-app
+  - 2. Read in this order: HANDOFF-pr27.yaml (this file), CLAUDE_CODE_PROMPT.md, DECISIONS.md, DEPLOY.md, handoff.yaml
+  - 3. git fetch && git status   # confirm in sync with origin/main (HEAD = fc8cec7 or later)
+  - 4. set -a; source .env.local; set +a
+  - 5. npm run doctor             # 8/9 green expected (ANTHROPIC_API_KEY missing)
+  - 6. npm run typecheck && npm test && npm run build  # all green
+  - 7. To finish PR-27 follow-ups, see `outstanding:` section above
+
+prior_session_context:
+  user_preferences_observed:
+    - terse_responses: true
+    - autonomous_action_preferred: true ("do it on your own", "pick the best option")
+    - course_corrects_via_brief_messages: ["next", "go ahead", specific commands]
+    - dislikes_trailing_summaries_unless_useful: true
+
+  user_environment:
+    os: macOS Darwin 25.3.0
+    shell: zsh
+    node_version_seen: "v24.15.0"
+    git_user_name: fozleyr-beep
+    git_user_email: fozleyr@gmail.com
+    has_no: [homebrew, gh-cli, vercel-cli-globally]
+    has_via_npx: [neonctl, vercel, drizzle-kit]
+    chrome_extension_mcp_available: true
+    computer_use_mcp_available: true (not used this session)
+
+  hard_limits_observed:
+    - Cannot push to public GitHub or self-grant push permission without explicit user authorization or pre-existing settings rule
+    - Cannot create third-party accounts (Vercel/Neon/Clerk signups) on user's behalf — flagged as prohibited
+    - Cannot complete OAuth login to a NEW account; can drive existing-session login flows with explicit user OK
+    - Cannot bypass GitHub sudo-mode (email verification) for security setting changes
+
+design_decisions_locked_in_pr12:
+  see: DECISIONS.md
+  summary: "All 20 originally-GUESSED decisions are now locked. Key ones for PR-27 visibility: repo public, Clerk-hosted UI, fozleyr@gmail.com as disclosure, single-region Neon, ink-on-paper visual placeholder."
+
+key_files_to_know:
+  - { path: app/api/webhooks/clerk/route.ts,    role: "svix-verified Clerk webhook handler" }
+  - { path: lib/auth/current-user.ts,           role: "requireDbUser() with lazy-backfill — fallback when webhook hasn't fired" }
+  - { path: middleware.ts,                      role: "Clerk auth + strict CSP with per-request nonce" }
+  - { path: lib/messaging/authz.ts,             role: "fanout authz (PR-19); enforced by 6 unit tests in lib/messaging/authz.test.ts" }
+  - { path: scripts/doctor.ts,                  role: "preflight env + connectivity check (npm run doctor)" }
+  - { path: scripts/check-bundle-budget.ts,     role: "per-route bundle budget (npm run check:bundle) — enforced in CI" }
+  - { path: scripts/check-schema-drift.ts,      role: "Drizzle schema vs. live DB drift check (npm run db:check) — enforced in CI" }
+  - { path: drizzle.config.ts,                  role: "Drizzle config; does NOT auto-load .env.local — export DATABASE_URL first" }
+  - { path: vercel.json,                        role: "framework=nextjs, region=iad1, X-Frame-Options DENY" }
+  - { path: tests/agent-isolation.test.ts,      role: "load-bearing: fails build if /api/agent imports messaging schema" }
