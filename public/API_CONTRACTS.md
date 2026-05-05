@@ -37,6 +37,10 @@ Last updated: 2026-05-05
   - Exports profile, agent ledger, matches, salaam requests, and room metadata.
   - Does not export decrypted room plaintext.
 
+- `GET /api/platform/readiness`
+  - Returns provider launch-gate state for the signed-in operator.
+  - Emits provider names and required env keys only, never secret values.
+
 ## Messaging routes
 
 - `POST /api/device-keys` registers a public device key.

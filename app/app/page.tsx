@@ -148,6 +148,12 @@ export default async function AppPage() {
           title="Contracts"
           body="Schemas, API contracts, agent prompts, and launch gates."
         />
+        <SurfaceLink
+          eyebrow="Launch"
+          href={"/app/readiness" as Route}
+          title="Provider readiness"
+          body="Auth webhooks, billing, phone verification, private media, cron, and telemetry."
+        />
       </section>
 
       <div className="mt-8">

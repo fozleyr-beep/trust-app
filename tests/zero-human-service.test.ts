@@ -22,7 +22,9 @@ describe("zero-human service path", () => {
     "app/app/sabr/page.tsx",
     "app/app/economics/page.tsx",
     "app/app/engineering/page.tsx",
+    "app/app/readiness/page.tsx",
     "app/app/layout.tsx",
+    "app/api/platform/readiness/route.ts",
     "app/api/agents/actions/route.ts",
     "app/api/service/audit/route.ts",
     "app/api/service/profile/route.ts",
@@ -60,6 +62,7 @@ describe("zero-human service path", () => {
       "/app/sabr",
       "/app/economics",
       "/app/engineering",
+      "/app/readiness",
     ]) {
       expect(`${dashboard}\n${platformLayout}\n${serviceFlow}\n${registry}`).toContain(
         href,
@@ -90,6 +93,22 @@ describe("zero-human service path", () => {
     expect(read("public/ENGINEERING_PLAN.md")).toContain("schema");
     expect(read("public/API_CONTRACTS.md")).toContain("/api/service/audit");
     expect(read("public/AGENT_PROMPTS.md")).toContain("Hafiz");
+  });
+
+  it("exposes provider readiness without leaking secret values", () => {
+    const readiness = read("lib/platform/readiness.ts");
+    const page = read("app/app/readiness/page.tsx");
+    const route = read("app/api/platform/readiness/route.ts");
+    expect(read(".env.example")).toContain("R2_BUCKET=sakinah-photos");
+    expect(read("scripts/doctor.ts")).toContain("R2_BUCKET_VOICE");
+    expect(read("app/app/layout.tsx")).toContain("/app/readiness");
+    expect(route).toContain("requireDbUser");
+    expect(route).toContain("getProviderReadiness");
+    expect(page).toContain("Provider readiness");
+    expect(readiness).toContain("CLERK_WEBHOOK_SECRET");
+    expect(readiness).toContain("STRIPE_WEBHOOK_SECRET");
+    expect(readiness).toContain("R2_SECRET_ACCESS_KEY");
+    expect(readiness).not.toContain("process.env.R2_SECRET_ACCESS_KEY!");
   });
 
   it("keeps launch-gate pages operational instead of static copy", () => {

@@ -17,6 +17,7 @@ const platformNav = [
   { href: "/app/sabr", label: "Sabr ops" },
   { href: "/app/economics", label: "Economics" },
   { href: "/app/engineering", label: "Build plan" },
+  { href: "/app/readiness", label: "Readiness" },
   { href: "/app/threads", label: "Rooms" },
   { href: "/app/agent", label: "Assistant" },
   { href: "/app/settings", label: "Settings" },
