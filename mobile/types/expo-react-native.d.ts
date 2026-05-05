@@ -7,6 +7,39 @@ declare module "expo-constants" {
   export default Constants;
 }
 
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
+declare module "@clerk/expo" {
+  import type { ComponentType, ReactNode } from "react";
+
+  export const ClerkProvider: ComponentType<{
+    children?: ReactNode;
+    publishableKey: string;
+    tokenCache?: unknown;
+  }>;
+
+  export function useAuth(): {
+    isLoaded: boolean;
+    isSignedIn: boolean;
+    signOut: () => Promise<void>;
+  };
+
+  export function useUser(): {
+    user?: {
+      fullName?: string | null;
+      primaryEmailAddress?: {
+        emailAddress?: string | null;
+      } | null;
+    } | null;
+  };
+}
+
+declare module "@clerk/expo/token-cache" {
+  export const tokenCache: unknown;
+}
+
 declare module "react-native" {
   import type { ComponentType, ReactNode } from "react";
 

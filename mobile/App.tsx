@@ -11,6 +11,8 @@ import {
   Text,
   View,
 } from "react-native";
+import { ClerkProvider, useAuth, useUser } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
 import Constants from "expo-constants";
 import {
   agentName,
@@ -40,6 +42,20 @@ const stateCopy: Record<AgentStageState, string> = {
 type TabName = "path" | "agents" | "account" | "store";
 
 export default function App() {
+  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+  if (!publishableKey) {
+    return <AppShell nativeAuthReady={false} />;
+  }
+
+  return (
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <AppShell nativeAuthReady />
+    </ClerkProvider>
+  );
+}
+
+function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
   const [tab, setTab] = useState<TabName>("path");
   const apiBaseUrl = useMemo(() => {
     const extra = Constants.expoConfig?.extra as
@@ -123,33 +139,7 @@ export default function App() {
         )}
 
         {tab === "account" && (
-          <View style={styles.stack}>
-            <Card>
-              <Text style={styles.cardTitle}>Native auth gate</Text>
-              <Text style={styles.cardBody}>
-                Clerk native auth is the next implementation slice. Until it is
-                wired, the app sends users to the hosted sign-in route.
-              </Text>
-            </Card>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={() => Linking.openURL(`${apiBaseUrl}/sign-in`)}
-            >
-              <Text style={styles.primaryButtonText}>Open sign in</Text>
-            </Pressable>
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={() => Linking.openURL(`${apiBaseUrl}/account/delete`)}
-            >
-              <Text style={styles.secondaryButtonText}>Delete account</Text>
-            </Pressable>
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={() => Linking.openURL(`${apiBaseUrl}/privacy`)}
-            >
-              <Text style={styles.secondaryButtonText}>Privacy policy</Text>
-            </Pressable>
-          </View>
+          <AccountTab apiBaseUrl={apiBaseUrl} nativeAuthReady={nativeAuthReady} />
         )}
 
         {tab === "store" && (
@@ -178,6 +168,116 @@ export default function App() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function AccountTab({
+  apiBaseUrl,
+  nativeAuthReady,
+}: {
+  apiBaseUrl: string;
+  nativeAuthReady: boolean;
+}) {
+  if (!nativeAuthReady) {
+    return (
+      <View style={styles.stack}>
+        <Card>
+          <Text style={styles.cardTitle}>Native auth gate</Text>
+          <Text style={styles.cardBody}>
+            Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY before running a device build.
+            Until then, hosted sign-in stays available for review and QA.
+          </Text>
+        </Card>
+        <AccountLinks apiBaseUrl={apiBaseUrl} />
+      </View>
+    );
+  }
+
+  return <AuthenticatedAccountTab apiBaseUrl={apiBaseUrl} />;
+}
+
+function AuthenticatedAccountTab({ apiBaseUrl }: { apiBaseUrl: string }) {
+  const { isLoaded, isSignedIn, signOut } = useAuth();
+  const { user } = useUser();
+
+  if (!isLoaded) {
+    return (
+      <View style={styles.stack}>
+        <Card>
+          <Text style={styles.cardTitle}>Checking session</Text>
+          <Text style={styles.cardBody}>
+            Sakinah is reading the encrypted Clerk session from native secure
+            storage.
+          </Text>
+        </Card>
+      </View>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <View style={styles.stack}>
+        <Card>
+          <Text style={styles.cardTitle}>Native auth ready</Text>
+          <Text style={styles.cardBody}>
+            Clerk is mounted with secure token persistence. The next slice
+            replaces the hosted route with native email sign-in and sign-up
+            screens.
+          </Text>
+        </Card>
+        <AccountLinks apiBaseUrl={apiBaseUrl} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.stack}>
+      <Card>
+        <Text style={styles.cardTitle}>Signed in</Text>
+        <Text style={styles.cardBody}>
+          {user?.primaryEmailAddress?.emailAddress ??
+            user?.fullName ??
+            "Private Sakinah account"}
+        </Text>
+      </Card>
+      <Pressable style={styles.primaryButton} onPress={() => void signOut()}>
+        <Text style={styles.primaryButtonText}>Sign out</Text>
+      </Pressable>
+      <AccountLinks apiBaseUrl={apiBaseUrl} hideSignIn />
+    </View>
+  );
+}
+
+function AccountLinks({
+  apiBaseUrl,
+  hideSignIn = false,
+}: {
+  apiBaseUrl: string;
+  hideSignIn?: boolean;
+}) {
+  return (
+    <>
+      {!hideSignIn && (
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => Linking.openURL(`${apiBaseUrl}/sign-in`)}
+        >
+          <Text style={styles.primaryButtonText}>Open sign in</Text>
+        </Pressable>
+      )}
+      <Pressable
+        style={styles.secondaryButton}
+        onPress={() => Linking.openURL(`${apiBaseUrl}/account/delete`)}
+      >
+        <Text style={styles.secondaryButtonText}>Delete account</Text>
+      </Pressable>
+      <Pressable
+        style={styles.secondaryButton}
+        onPress={() => Linking.openURL(`${apiBaseUrl}/privacy`)}
+      >
+        <Text style={styles.secondaryButtonText}>Privacy policy</Text>
+      </Pressable>
+    </>
   );
 }
 

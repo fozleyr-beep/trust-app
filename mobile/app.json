@@ -16,6 +16,7 @@
       "edgeToEdgeEnabled": true,
       "permissions": []
     },
+    "plugins": ["expo-secure-store", "@clerk/expo"],
     "extra": {
       "apiBaseUrl": "https://trust-app-three.vercel.app"
     }

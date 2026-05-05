@@ -12,7 +12,7 @@
     "submit:android": "eas submit --platform android --profile production"
   },
   "dependencies": {
-    "@clerk/clerk-expo": "^2.19.31",
+    "@clerk/expo": "^3.2.7",
     "expo": "^55.0.20",
     "expo-constants": "^55.0.15",
     "expo-crypto": "^55.0.14",

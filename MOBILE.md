@@ -40,8 +40,9 @@ for Play Console, and leaves iOS open when the Apple Developer account is ready.
 
 ## Next slices
 
-1. Native Clerk auth.
-2. Replace hosted sign-in link with native sign-in/up screens.
-3. Native key storage and encrypted messaging port.
-4. Android payment policy decision and implementation.
-5. Play Store assets and internal testing release.
+1. Native email sign-in/up screens on top of the mounted Clerk provider.
+2. Native key storage and encrypted messaging port.
+3. Android payment policy decision and implementation.
+4. Play Store assets and internal testing release.
+5. Move the API base URL to `https://sakinah.family` once the domain points at
+   this app.

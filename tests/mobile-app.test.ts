@@ -44,4 +44,17 @@ describe("mobile app foundation", () => {
     expect(app).toContain("/privacy");
     expect(app).toContain("/sign-in");
   });
+
+  it("uses current Clerk Expo auth with secure native token persistence", () => {
+    const app = read("mobile/App.tsx");
+    const pkg = read("mobile/package.json");
+    const config = read("mobile/app.json");
+    expect(pkg).toContain('"@clerk/expo"');
+    expect(pkg).not.toContain("@clerk/clerk-expo");
+    expect(config).toContain('"@clerk/expo"');
+    expect(config).toContain('"expo-secure-store"');
+    expect(app).toContain("ClerkProvider");
+    expect(app).toContain("@clerk/expo/token-cache");
+    expect(app).toContain("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
+  });
 });

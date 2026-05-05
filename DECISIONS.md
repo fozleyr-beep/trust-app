@@ -96,7 +96,8 @@ in-app paid access through Stripe until the Play payments policy decision is
 resolved; default to Google Play Billing for in-app unlocks unless a documented
 exception applies. The mobile app must expose account deletion and privacy
 policy links before Play review; the current public routes are `/account/delete`
-and `/privacy`.
+and `/privacy`. Native Clerk is mounted with `@clerk/expo` and secure
+`tokenCache`; the remaining auth work is native email sign-in/up screens.
 
 ---
 
