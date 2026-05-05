@@ -253,6 +253,41 @@ export function SalaamResponseButton({
   );
 }
 
+export function AuditExportButton() {
+  const [status, setStatus] = useState("Ready.");
+  async function exportAudit() {
+    setStatus("Preparing export...");
+    try {
+      const res = await fetch("/api/service/audit");
+      if (!res.ok) throw new Error(await errorText(res));
+      const blob = new Blob([JSON.stringify(await res.json(), null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sakinah-audit-${new Date().toISOString()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus("Export downloaded.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Export failed.");
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        className="min-h-11 rounded border border-[var(--color-ink)] px-5 text-sm text-[var(--color-ink)]"
+        onClick={() => void exportAudit()}
+        type="button"
+      >
+        Export service audit
+      </button>
+      <p className="text-sm text-[var(--color-ink-muted)]">{status}</p>
+    </div>
+  );
+}
+
 async function errorText(res: Response): Promise<string> {
   try {
     const body = (await res.json()) as { error?: string };

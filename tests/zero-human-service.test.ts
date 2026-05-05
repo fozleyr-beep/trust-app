@@ -16,7 +16,9 @@ describe("zero-human service path", () => {
     "app/app/matches/page.tsx",
     "app/app/salaam/page.tsx",
     "app/app/family/page.tsx",
+    "app/app/layout.tsx",
     "app/api/agents/actions/route.ts",
+    "app/api/service/audit/route.ts",
     "app/api/service/profile/route.ts",
     "app/api/service/agents/run/route.ts",
     "app/api/service/matches/[id]/respond/route.ts",
@@ -31,9 +33,14 @@ describe("zero-human service path", () => {
 
   it("wires the dashboard to the full service path", () => {
     const dashboard = read("app/app/page.tsx");
+    const platformLayout = read("app/app/layout.tsx");
     const serviceFlow = read("app/components/ServiceFlow.tsx");
     const registry = read("lib/agents/registry.ts");
-    expect(dashboard).toContain("ServiceStageGrid");
+    expect(platformLayout).toContain("platform console");
+    expect(dashboard).toContain("Command center");
+    expect(dashboard).toContain("getPlatformSnapshot");
+    expect(dashboard).toContain("AuditExportButton");
+    expect(dashboard).toContain("Run all agents");
     for (const href of [
       "/app/onboarding",
       "/app/verification",
@@ -56,6 +63,9 @@ describe("zero-human service path", () => {
     expect(read("lib/db/schema.ts")).toContain("match_suggestions");
     expect(read("lib/db/schema.ts")).toContain("salaam_requests");
     expect(read("app/api/agents/actions/route.ts")).toContain("sakinahAgents");
+    expect(read("app/api/service/audit/route.ts")).toContain(
+      "getPlatformSnapshot",
+    );
     expect(read("middleware.ts")).toContain("/api/billing/webhook");
     expect(read("DECISIONS.md")).toContain("zero human operator");
     expect(read("DECISIONS.md")).toContain("/app/billing");

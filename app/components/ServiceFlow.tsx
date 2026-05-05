@@ -6,7 +6,6 @@ import {
   ButtonLink,
   Eyebrow,
   TrustChip,
-  Wordmark,
 } from "@/app/components/SakinahPrimitives";
 import type { AgentActionView } from "@/lib/agents/actions";
 import {
@@ -32,10 +31,12 @@ export function AppServiceShell({
 }) {
   return (
     <main className="mx-auto max-w-7xl px-5 py-10 md:px-8 md:py-14">
-      <header className="mb-12 flex items-center justify-between gap-6">
-        <Wordmark compact />
+      <header className="mb-10 flex items-center justify-between gap-6">
+        <p className="font-mono text-[0.65rem] uppercase tracking-[0.16em] text-[var(--color-ink-faint)]">
+          Sakinah platform
+        </p>
         <ButtonLink href={"/app" as Route} tone="secondary">
-          Dashboard
+          Command
         </ButtonLink>
       </header>
       <section className="grid gap-10 lg:grid-cols-[0.9fr_0.55fr]">
