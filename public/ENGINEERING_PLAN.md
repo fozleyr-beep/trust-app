@@ -40,6 +40,10 @@ Every product slice should pass:
 - `npm run smoke:prod` after production deploy
 - production smoke for `/api/health`, public docs, and protected app boundary
 
+Operator-visible launch state lives in `/app/improvements` and `/app/engineering`:
+the former owns the 50-item execution rail and cutover checklist, while the
+latter exposes shipped change batches and prompt-version hashes.
+
 ## Non-negotiables
 
 - Agents do not import messaging tables.

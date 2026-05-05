@@ -4,6 +4,10 @@ import {
   getPlatformImprovements,
   type ImprovementStatus,
 } from "@/lib/platform/improvements";
+import {
+  launchCutoverChecklist,
+  type LaunchLedgerStatus,
+} from "@/lib/platform/launch-ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +54,41 @@ export default async function ImprovementsPage() {
                 {item.title}
               </h2>
               <p className="mt-2 text-xs leading-5 text-[var(--color-ink-soft)]">
+                {item.next}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-5">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
+              launch cutover checklist
+            </p>
+            <h2 className="mt-3 font-serif text-[1.7rem] leading-tight">
+              Green means shipped, active means watched, blocked means provider.
+            </h2>
+          </div>
+          <StatusPill state="ready" />
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {launchCutoverChecklist.map((item) => (
+            <article
+              className="rounded border border-[var(--color-rule)] bg-[var(--color-paper-soft)] p-4"
+              key={item.id}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="font-mono text-[0.62rem] uppercase tracking-[0.12em] text-[var(--color-ink-faint)]">
+                  {item.owner} · {item.proof}
+                </p>
+                <StatusPill state={pillForLaunch(item.status)} />
+              </div>
+              <h3 className="mt-3 font-serif text-[1.25rem] leading-tight">
+                {item.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--color-ink-soft)]">
                 {item.next}
               </p>
             </article>
@@ -112,6 +151,12 @@ function Metric({ label, value }: { label: string; value: number }) {
 }
 
 function pillFor(status: ImprovementStatus) {
+  if (status === "live") return "live";
+  if (status === "blocked") return "gate";
+  return "ready";
+}
+
+function pillForLaunch(status: LaunchLedgerStatus) {
   if (status === "live") return "live";
   if (status === "blocked") return "gate";
   return "ready";

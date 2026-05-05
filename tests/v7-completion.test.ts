@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { isPrivacyEventAllowed } from "@/lib/observability-policy";
 
 const root = process.cwd();
 
@@ -59,8 +60,10 @@ describe("v7 completion contract", () => {
 
   it("wires privacy-conserving observability and cron without observer funnels", () => {
     expect(read("lib/observability.ts")).toContain(
-      'input.event.startsWith("observer.")',
+      "isPrivacyEventAllowed(input.event)",
     );
+    expect(isPrivacyEventAllowed("observer.invited")).toBe(false);
+    expect(isPrivacyEventAllowed("room.message.sent")).toBe(false);
     expect(read("vercel.json")).toContain("/api/cron/wali-digest");
     expect(read(".env.example")).toContain("POSTHOG_KEY");
     expect(read(".env.example")).toContain("SENTRY_DSN");
