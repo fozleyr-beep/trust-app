@@ -16,9 +16,15 @@
       "edgeToEdgeEnabled": true,
       "permissions": []
     },
-    "plugins": ["expo-secure-store", "@clerk/expo"],
+    "plugins": [
+      "expo-secure-store",
+      "@clerk/expo"
+    ],
     "extra": {
-      "apiBaseUrl": "https://sakinah.family"
+      "apiBaseUrl": "https://sakinah.family",
+      "eas": {
+        "projectId": "96059a19-1de7-4d76-89f5-6dd27c616a75"
+      }
     }
   }
 }

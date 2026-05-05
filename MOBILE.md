@@ -40,7 +40,9 @@ for Play Console, and leaves iOS open when the Apple Developer account is ready.
 
 ## Next slices
 
-1. Generate final Play artwork and screenshots from the mobile app.
-2. Run EAS `build:configure` after Expo login to attach a project id.
+1. Generate final Play raster artwork and screenshots from the mobile app.
+2. Run the first EAS preview APK build, then production AAB for Play internal testing.
 3. Keep `sakinah.family/api/health` green after future deploys; mobile now uses
    `https://sakinah.family`.
+
+EAS is linked as project `96059a19-1de7-4d76-89f5-6dd27c616a75`.

@@ -28,7 +28,8 @@ npm run build:android
 ```
 
 The `preview` profile creates an APK for internal testing. The `production`
-profile creates an Android App Bundle for Play Console.
+profile creates an Android App Bundle for Play Console. EAS project id:
+`96059a19-1de7-4d76-89f5-6dd27c616a75`.
 
 Release readiness from repo root:
 
@@ -38,7 +39,6 @@ npm run android:release-check
 
 ## Launch gates
 
-- Let `eas build:configure` add the Expo project id to `app.json`.
 - Add final app icon, adaptive icon, splash, screenshots, and feature graphic.
 - Move `extra.apiBaseUrl` to `https://sakinah.family` after the main app is
   attached to that Vercel project.
