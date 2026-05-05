@@ -23,6 +23,7 @@ Stack:
 Source of truth:
 
 - [`DECISIONS.md`](./DECISIONS.md) — locked product/design/stack decisions
+- [`MOBILE.md`](./MOBILE.md) — Android-first Expo strategy and Play policy gates
 - [`handoff.yaml`](./handoff.yaml) — tokens, agents, data model, flows, routes
 - [`CLAUDE_CODE_PROMPT.md`](./CLAUDE_CODE_PROMPT.md) — PR plan + bootstrap
 
@@ -106,6 +107,11 @@ middleware.ts                # Clerk auth + strict nonce-based CSP
 tests/
   agent-spine.test.ts        # asserts four-agent source of truth
   agent-isolation.test.ts    # asserts agent never touches messages
+  mobile-app.test.ts         # asserts Android-first mobile scaffold
+mobile/
+  App.tsx                    # Expo React Native mobile shell
+  app.json                   # Android package + future iOS bundle id
+  eas.json                   # internal APK + production AAB profiles
 drizzle/                     # migrations
 scripts/
   doctor.ts                  # npm run doctor

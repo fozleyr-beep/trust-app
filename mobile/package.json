@@ -1,0 +1,30 @@
+{
+  "name": "sakinah-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "typecheck": "tsc --noEmit",
+    "build:android": "eas build --platform android --profile preview",
+    "submit:android": "eas submit --platform android --profile production"
+  },
+  "dependencies": {
+    "@clerk/clerk-expo": "^2.19.31",
+    "expo": "^55.0.20",
+    "expo-constants": "^55.0.15",
+    "expo-crypto": "^55.0.14",
+    "expo-linking": "^55.0.14",
+    "expo-secure-store": "^55.0.13",
+    "react": "^19.2.5",
+    "react-native": "^0.85.2",
+    "react-native-safe-area-context": "^5.7.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "eas-cli": "^18.10.0",
+    "typescript": "^6.0.3"
+  }
+}

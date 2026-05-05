@@ -89,6 +89,13 @@ Hafiz (verification), Watim (match reasoning), Adil (consent), and Sabr
 This ledger may hold product state and launch gates; it must not store
 encrypted-room plaintext or raw identity evidence.
 
+Mobile is the primary product surface. The chosen path is Expo React Native in
+`mobile/`, Android-first for Google Play Console, with iOS kept open through the
+same codebase once an Apple Developer account exists. Do not ship Android
+in-app paid access through Stripe until the Play payments policy decision is
+resolved; default to Google Play Billing for in-app unlocks unless a documented
+exception applies.
+
 ---
 
 ## Encryption model — locked

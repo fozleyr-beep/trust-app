@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Sakinah.family",
+    "slug": "sakinah-family",
+    "scheme": "sakinah",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "family.sakinah.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "family.sakinah.app",
+      "edgeToEdgeEnabled": true,
+      "permissions": []
+    },
+    "extra": {
+      "apiBaseUrl": "https://trust-app-three.vercel.app"
+    }
+  }
+}
