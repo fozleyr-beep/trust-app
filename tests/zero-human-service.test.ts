@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { getPlatformImprovements } from "@/lib/platform/improvements";
 
 const root = process.cwd();
 
@@ -23,8 +24,10 @@ describe("zero-human service path", () => {
     "app/app/economics/page.tsx",
     "app/app/engineering/page.tsx",
     "app/app/readiness/page.tsx",
+    "app/app/improvements/page.tsx",
     "app/app/layout.tsx",
     "app/api/platform/readiness/route.ts",
+    "app/api/platform/improvements/route.ts",
     "app/api/agents/actions/route.ts",
     "app/api/service/audit/route.ts",
     "app/api/service/profile/route.ts",
@@ -63,6 +66,7 @@ describe("zero-human service path", () => {
       "/app/economics",
       "/app/engineering",
       "/app/readiness",
+      "/app/improvements",
     ]) {
       expect(`${dashboard}\n${platformLayout}\n${serviceFlow}\n${registry}`).toContain(
         href,
@@ -110,6 +114,21 @@ describe("zero-human service path", () => {
     expect(readiness).toContain("R2_SECRET_ACCESS_KEY");
     expect(readiness).toContain("PHOTO_ACCESS_TOKEN_SECRET");
     expect(readiness).not.toContain("process.env.R2_SECRET_ACCESS_KEY!");
+  });
+
+  it("keeps a numbered 50-item improvement rail", () => {
+    const improvements = read("lib/platform/improvements.ts");
+    const page = read("app/app/improvements/page.tsx");
+    const route = read("app/api/platform/improvements/route.ts");
+    expect(route).toContain("requireDbUser");
+    expect(route).toContain("getPlatformImprovements");
+    expect(page).toContain("Fifty improvements");
+    expect(page).toContain("next five by score");
+    expect(read("public/API_CONTRACTS.md")).toContain(
+      "/api/platform/improvements",
+    );
+    expect(getPlatformImprovements().total).toBe(50);
+    expect(improvements).toContain("Launch cutover checklist");
   });
 
   it("keeps launch-gate pages operational instead of static copy", () => {

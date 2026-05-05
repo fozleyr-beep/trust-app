@@ -41,6 +41,10 @@ Last updated: 2026-05-05
   - Returns provider launch-gate state for the signed-in operator.
   - Emits provider names and required env keys only, never secret values.
 
+- `GET /api/platform/improvements`
+  - Returns the 50-item platform execution rail for the signed-in operator.
+  - Includes owner, status, score, blocker, route, and next move.
+
 ## Messaging routes
 
 - `POST /api/device-keys` registers a public device key.

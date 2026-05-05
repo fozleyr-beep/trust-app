@@ -154,6 +154,12 @@ export default async function AppPage() {
           title="Provider readiness"
           body="Auth webhooks, billing, phone verification, private media, cron, and telemetry."
         />
+        <SurfaceLink
+          eyebrow="Ops"
+          href={"/app/improvements" as Route}
+          title="Fifty improvements"
+          body="Ranked execution rail with owners, blockers, scores, and next moves."
+        />
       </section>
 
       <div className="mt-8">

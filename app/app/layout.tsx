@@ -18,6 +18,7 @@ const platformNav = [
   { href: "/app/economics", label: "Economics" },
   { href: "/app/engineering", label: "Build plan" },
   { href: "/app/readiness", label: "Readiness" },
+  { href: "/app/improvements", label: "Improvements" },
   { href: "/app/threads", label: "Rooms" },
   { href: "/app/agent", label: "Assistant" },
   { href: "/app/settings", label: "Settings" },
