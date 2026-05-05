@@ -22,6 +22,10 @@ import {
 import { tokenCache } from "@clerk/expo/token-cache";
 import Constants from "expo-constants";
 import {
+  registerMobileDeviceKey,
+  rotateMobileDeviceKey,
+} from "./src/crypto/deviceKeys";
+import {
   agentActionBaselines,
   agentName,
   sakinahAgents,
@@ -360,7 +364,7 @@ function AccountTab({
 }
 
 function AuthenticatedAccountTab({ apiBaseUrl }: { apiBaseUrl: string }) {
-  const { isLoaded, isSignedIn, signOut } = useAuth();
+  const { getToken, isLoaded, isSignedIn, signOut } = useAuth();
   const { user } = useUser();
   const [authMode, setAuthMode] = useState<AuthMode>("sign-in");
 
@@ -410,11 +414,73 @@ function AuthenticatedAccountTab({ apiBaseUrl }: { apiBaseUrl: string }) {
         </Text>
       </Card>
       <OnboardingGate />
+      <DeviceKeyCard apiBaseUrl={apiBaseUrl} getToken={getToken} />
       <Pressable style={styles.primaryButton} onPress={() => void signOut()}>
         <Text style={styles.primaryButtonText}>Sign out</Text>
       </Pressable>
       <AccountLinks apiBaseUrl={apiBaseUrl} hideSignIn />
     </View>
+  );
+}
+
+function DeviceKeyCard({
+  apiBaseUrl,
+  getToken,
+}: {
+  apiBaseUrl: string;
+  getToken: () => Promise<string | null>;
+}) {
+  const [status, setStatus] = useState("No device key registered yet.");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function register() {
+    setIsSubmitting(true);
+    setStatus("Registering this device...");
+    try {
+      const result = await registerMobileDeviceKey({ apiBaseUrl, getToken });
+      setStatus(`Device ${result.fingerprint} registered.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Device registration failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function rotate() {
+    setIsSubmitting(true);
+    setStatus("Rotating local key...");
+    try {
+      await rotateMobileDeviceKey();
+      const result = await registerMobileDeviceKey({ apiBaseUrl, getToken });
+      setStatus(`Rotated to ${result.fingerprint}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Device rotation failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>Device key</Text>
+      <Text style={styles.cardBody}>{status}</Text>
+      <View style={styles.buttonRow}>
+        <Pressable
+          disabled={isSubmitting}
+          style={[styles.primaryButton, styles.rowButton, isSubmitting && styles.buttonDisabled]}
+          onPress={() => void register()}
+        >
+          <Text style={styles.primaryButtonText}>Register</Text>
+        </Pressable>
+        <Pressable
+          disabled={isSubmitting}
+          style={[styles.secondaryButton, styles.rowButton, isSubmitting && styles.buttonDisabled]}
+          onPress={() => void rotate()}
+        >
+          <Text style={styles.secondaryButtonText}>Rotate</Text>
+        </Pressable>
+      </View>
+    </Card>
   );
 }
 

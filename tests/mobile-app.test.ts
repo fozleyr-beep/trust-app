@@ -98,4 +98,18 @@ describe("mobile app foundation", () => {
     expect(app).toContain("Privacy consent accepted");
     expect(app).toContain("Watim may prepare an explainable shortlist");
   });
+
+  it("keeps mobile private keys in native secure storage", () => {
+    const app = read("mobile/App.tsx");
+    const deviceKeys = read("mobile/src/crypto/deviceKeys.ts");
+    const messaging = read("mobile/src/crypto/messaging.ts");
+    const pkg = read("mobile/package.json");
+    expect(pkg).toContain('"tweetnacl"');
+    expect(deviceKeys).toContain("expo-secure-store");
+    expect(deviceKeys).toContain("registerMobileDeviceKey");
+    expect(deviceKeys).toContain("/api/device-keys");
+    expect(messaging).toContain("nacl.box");
+    expect(messaging).toContain("decryptMobileMessage");
+    expect(app).toContain("DeviceKeyCard");
+  });
 });

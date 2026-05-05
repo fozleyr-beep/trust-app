@@ -21,6 +21,7 @@ declare module "@clerk/expo" {
   }>;
 
   export function useAuth(): {
+    getToken: () => Promise<string | null>;
     isLoaded: boolean;
     isSignedIn: boolean;
     signOut: () => Promise<void>;
@@ -70,6 +71,53 @@ declare module "@clerk/expo" {
 
 declare module "@clerk/expo/token-cache" {
   export const tokenCache: unknown;
+}
+
+declare module "expo-crypto" {
+  export function getRandomBytesAsync(length: number): Promise<Uint8Array>;
+}
+
+declare module "expo-secure-store" {
+  export function deleteItemAsync(key: string): Promise<void>;
+  export function getItemAsync(key: string): Promise<string | null>;
+  export function setItemAsync(key: string, value: string): Promise<void>;
+}
+
+declare module "tweetnacl" {
+  const nacl: {
+    box: {
+      (
+        message: Uint8Array,
+        nonce: Uint8Array,
+        publicKey: Uint8Array,
+        secretKey: Uint8Array,
+      ): Uint8Array;
+      keyPair: {
+        fromSecretKey(secretKey: Uint8Array): {
+          publicKey: Uint8Array;
+          secretKey: Uint8Array;
+        };
+      };
+      nonceLength: number;
+      open(
+        ciphertext: Uint8Array,
+        nonce: Uint8Array,
+        publicKey: Uint8Array,
+        secretKey: Uint8Array,
+      ): Uint8Array | null;
+    };
+  };
+  export default nacl;
+}
+
+declare module "tweetnacl-util" {
+  const naclUtil: {
+    decodeBase64(value: string): Uint8Array;
+    decodeUTF8(value: string): Uint8Array;
+    encodeBase64(bytes: Uint8Array): string;
+    encodeUTF8(bytes: Uint8Array): string;
+  };
+  export default naclUtil;
 }
 
 declare module "react-native" {

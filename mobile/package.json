@@ -20,7 +20,9 @@
     "expo-secure-store": "^55.0.13",
     "react": "^19.2.5",
     "react-native": "^0.85.2",
-    "react-native-safe-area-context": "^5.7.0"
+    "react-native-safe-area-context": "^5.7.0",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
