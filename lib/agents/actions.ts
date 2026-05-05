@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import {
@@ -105,7 +106,22 @@ export async function recordAgentAction({
       },
     })
     .returning();
+
+  await db().insert(schema.auditEvents).values({
+    userId,
+    agent: agentId,
+    action,
+    tag: key,
+    state: status,
+    promptHash: digest(`${key}:${subject ?? ""}`),
+    responseHash: digest(`${action}:${detail ?? ""}`),
+  });
+
   return toView(row);
+}
+
+function digest(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function toView(row: schema.AgentAction): AgentActionView {

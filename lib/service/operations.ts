@@ -57,6 +57,15 @@ export type SalaamRequestView = {
   updatedAt: string;
 };
 
+export type SalaamQuotaView = {
+  limit: number;
+  sent: number;
+  left: number;
+  weekStart: string;
+};
+
+const SALAAM_WEEKLY_LIMIT = 3;
+
 export async function getServiceProfile(
   userId: string,
 ): Promise<ServiceProfileView | null> {
@@ -197,6 +206,15 @@ export async function respondToMatchSuggestion(
     );
   }
 
+  const existingSalaam = await db()
+    .select({ id: schema.salaamRequests.id })
+    .from(schema.salaamRequests)
+    .where(eq(schema.salaamRequests.matchSuggestionId, match.id))
+    .limit(1);
+  if (existingSalaam.length === 0) {
+    await reserveSalaamQuota(userId);
+  }
+
   const [salaam] = await db()
     .insert(schema.salaamRequests)
     .values({
@@ -237,6 +255,30 @@ export async function respondToMatchSuggestion(
   return {
     match: toMatchSuggestionView(updatedMatch),
     salaam: (await listSalaamRequests(userId)).find((s) => s.id === salaam.id),
+  };
+}
+
+export async function getSalaamQuotaStatus(
+  userId: string,
+  now = new Date(),
+): Promise<SalaamQuotaView> {
+  const weekStart = weekStartIso(now);
+  const [row] = await db()
+    .select()
+    .from(schema.salaamQuota)
+    .where(
+      and(
+        eq(schema.salaamQuota.userId, userId),
+        eq(schema.salaamQuota.weekStart, weekStart),
+      ),
+    )
+    .limit(1);
+  const sent = row?.sentCount ?? 0;
+  return {
+    limit: SALAAM_WEEKLY_LIMIT,
+    sent,
+    left: Math.max(0, SALAAM_WEEKLY_LIMIT - sent),
+    weekStart,
   };
 }
 
@@ -552,6 +594,40 @@ async function createConsentThread({
     ])
     .onConflictDoNothing();
   return thread.id;
+}
+
+async function reserveSalaamQuota(userId: string): Promise<void> {
+  const weekStart = weekStartIso();
+  const quota = await getSalaamQuotaStatus(userId);
+  if (quota.sent >= SALAAM_WEEKLY_LIMIT) {
+    throw new ServiceOperationError(
+      429,
+      "weekly salaam quota reached; wait until next week",
+    );
+  }
+  await db()
+    .insert(schema.salaamQuota)
+    .values({
+      userId,
+      weekStart,
+      sentCount: 1,
+    })
+    .onConflictDoUpdate({
+      target: [schema.salaamQuota.userId, schema.salaamQuota.weekStart],
+      set: {
+        sentCount: sql`${schema.salaamQuota.sentCount} + 1`,
+      },
+    });
+}
+
+export function weekStartIso(now = new Date()): string {
+  const date = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const day = date.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  date.setUTCDate(date.getUTCDate() + mondayOffset);
+  return date.toISOString().slice(0, 10);
 }
 
 function toProfileView(row: schema.ServiceProfile): ServiceProfileView {

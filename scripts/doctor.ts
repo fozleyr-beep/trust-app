@@ -34,6 +34,9 @@ const RECOMMENDED = [
   "STRIPE_SECRET_KEY",
   "STRIPE_PRICE_ID",
   "STRIPE_WEBHOOK_SECRET",
+  "POSTHOG_KEY",
+  "SENTRY_DSN",
+  "CRON_SECRET",
 ] as const;
 
 function envCheck(name: string, required: boolean): Check {
