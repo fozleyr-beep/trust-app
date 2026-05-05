@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireDbUser } from "@/lib/auth/current-user";
+import { getPlatformImprovements } from "@/lib/platform/improvements";
+import { getProviderReadiness } from "@/lib/platform/readiness";
 import { getPlatformSnapshot } from "@/lib/service/platform";
 
 export const runtime = "nodejs";
@@ -14,6 +16,8 @@ export async function GET() {
     profile: snapshot.profile,
     actions: snapshot.actions,
     matches: snapshot.matches,
+    platformImprovements: getPlatformImprovements(),
+    providerReadiness: getProviderReadiness(),
     salaams: snapshot.salaams,
     threads: snapshot.threads.map((thread) => ({
       id: thread.id,

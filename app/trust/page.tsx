@@ -6,6 +6,7 @@ import {
   Wordmark,
 } from "@/app/components/SakinahPrimitives";
 import { sakinahAgents } from "@/lib/agents/registry";
+import { retentionLedger, sabrSafetySignals } from "@/lib/trust/retention";
 
 export const metadata: Metadata = {
   title: "Sakinah — trust & verification",
@@ -269,6 +270,46 @@ export default function TrustPage() {
               <p className="mt-4 font-mono text-[0.68rem] text-[var(--color-ink-faint)]">
                 {item.path}
               </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-y border-[var(--color-rule)] bg-[var(--color-paper-soft)] px-5 py-16 md:px-10 lg:px-14">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.7fr_1.3fr]">
+          <div>
+            <Eyebrow>Retention</Eyebrow>
+            <h2 className="font-serif text-[2.5rem] font-normal leading-tight">
+              Data has a lifespan.
+            </h2>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {retentionLedger.map(([data, held, retention]) => (
+              <article
+                className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-4"
+                key={data}
+              >
+                <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
+                  {data}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">
+                  {held}. {retention}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-16 md:px-10 lg:px-14">
+        <Eyebrow>Sabr safety signals</Eyebrow>
+        <div className="mt-6 grid gap-3 md:grid-cols-5">
+          {sabrSafetySignals.map((signal) => (
+            <article
+              className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-4 text-sm leading-6 text-[var(--color-ink-soft)]"
+              key={signal}
+            >
+              {signal}
             </article>
           ))}
         </div>

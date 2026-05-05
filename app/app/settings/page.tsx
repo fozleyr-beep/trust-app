@@ -54,6 +54,15 @@ export default async function SettingsPage() {
             Rotate if this device key may be exposed. Past local messages stay
             readable; new messages encrypt to the new key.
           </p>
+          <div className="mt-4 rounded border border-[var(--color-rule)] bg-[var(--color-paper-soft)] p-4">
+            <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
+              recovery warning
+            </p>
+            <p className="mt-2 text-xs leading-5 text-[var(--color-ink-muted)]">
+              Sakinah cannot recover a lost private device key. Keep another
+              trusted device registered before rotating this one.
+            </p>
+          </div>
         </article>
 
         <article className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-5">

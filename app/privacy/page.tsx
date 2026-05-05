@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { Route } from "next";
 import Link from "next/link";
 import { Eyebrow, Wordmark } from "@/app/components/SakinahPrimitives";
+import { providerProcessing, retentionLedger } from "@/lib/trust/retention";
 
 export const metadata: Metadata = {
   title: "Sakinah — privacy policy",
@@ -71,6 +72,50 @@ export default function PrivacyPage() {
             </p>
           </article>
         ))}
+      </section>
+
+      <section className="mt-12">
+        <h2 className="font-serif text-[2rem] font-normal">
+          Provider processing table
+        </h2>
+        <div className="mt-5 overflow-hidden rounded border border-[var(--color-rule)]">
+          {providerProcessing.map(([provider, data, status, retention]) => (
+            <div
+              className="grid gap-3 border-b border-[var(--color-rule)] bg-[var(--color-surface)] p-4 text-sm last:border-b-0 md:grid-cols-[9rem_1fr_8rem_1.2fr]"
+              key={provider}
+            >
+              <strong className="font-serif text-[1rem] font-normal">
+                {provider}
+              </strong>
+              <span className="text-[var(--color-ink-soft)]">{data}</span>
+              <span className="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-[var(--color-ink-muted)]">
+                {status}
+              </span>
+              <span className="text-[var(--color-ink-soft)]">
+                {retention}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-12">
+        <h2 className="font-serif text-[2rem] font-normal">Retention ledger</h2>
+        <div className="mt-5 grid gap-3">
+          {retentionLedger.map(([data, held, retention]) => (
+            <article
+              className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-4"
+              key={data}
+            >
+              <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
+                {data}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--color-ink-soft)]">
+                {held}. {retention}
+              </p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <p className="mt-10 text-sm text-[var(--color-ink-muted)]">

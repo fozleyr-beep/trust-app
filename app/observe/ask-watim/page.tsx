@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireDbUser } from "@/lib/auth/current-user";
 import { AgentBubble, Eyebrow, TrustChip } from "@/app/components/SakinahPrimitives";
+import { observerBoundaries } from "@/lib/trust/retention";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,16 @@ export default async function AskWatimPage() {
         <button className="mt-4 min-h-11 rounded bg-[var(--color-ink)] px-5 text-sm text-[var(--color-paper)]">
           Ask
         </button>
+      </section>
+      <section className="mt-5 grid gap-3 md:grid-cols-2">
+        {observerBoundaries.map((item) => (
+          <p
+            className="rounded border border-[var(--color-rule)] bg-[var(--color-paper-soft)] p-3 text-sm leading-6 text-[var(--color-ink-soft)]"
+            key={item}
+          >
+            {item}
+          </p>
+        ))}
       </section>
     </main>
   );

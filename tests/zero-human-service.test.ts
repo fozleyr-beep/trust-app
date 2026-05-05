@@ -161,6 +161,12 @@ describe("zero-human service path", () => {
     expect(read("app/api/service/audit/route.ts")).toContain(
       "getPlatformSnapshot",
     );
+    expect(read("app/api/service/audit/route.ts")).toContain(
+      "providerReadiness",
+    );
+    expect(read("app/api/service/audit/route.ts")).toContain(
+      "platformImprovements",
+    );
     expect(read("app/api/service/profile/route.ts")).toContain(
       "getProfileCompleteness",
     );
@@ -207,5 +213,18 @@ describe("zero-human service path", () => {
     const combined = routes.map(read).join("\n");
     expect(combined).not.toMatch(/sales call required|manual reviewer required|staff will match/i);
     expect(combined).toMatch(/without an intake call|No sales call|without a coordinator/i);
+  });
+
+  it("makes trust, retention, and family boundaries explicit", () => {
+    expect(read("lib/trust/retention.ts")).toContain("providerProcessing");
+    expect(read("lib/trust/retention.ts")).toContain("retentionLedger");
+    expect(read("app/privacy/page.tsx")).toContain("Provider processing table");
+    expect(read("app/trust/page.tsx")).toContain("Sabr safety signals");
+    expect(read("app/for-families/page.tsx")).toContain("Observer contract");
+    expect(read("app/account/delete/page.tsx")).toContain("Deletion receipt");
+    expect(read("app/app/settings/page.tsx")).toContain("recovery warning");
+    expect(read("app/observe/ask-watim/page.tsx")).toContain(
+      "observerBoundaries",
+    );
   });
 });

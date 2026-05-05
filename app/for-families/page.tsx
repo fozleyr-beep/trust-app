@@ -10,6 +10,7 @@ import {
   Wordmark,
 } from "@/app/components/SakinahPrimitives";
 import { ArchFrame, Girih } from "@/app/components/MarketingPrimitives";
+import { observerBoundaries } from "@/lib/trust/retention";
 
 export const metadata: Metadata = {
   title: "For families — Sakinah.family",
@@ -49,6 +50,14 @@ const faqs = [
   [
     "Will the sender see invite analytics?",
     "No. Loved-one invites expire silently. There are no referral rewards and no sender telemetry.",
+  ],
+  [
+    "Can an observer ask Watim questions?",
+    "Yes, but only about process state, consent boundaries, and family context. Watim cannot reveal private room content.",
+  ],
+  [
+    "What happens if family pressure appears?",
+    "Sabr records pressure signals as product state so the platform can pause or slow the flow without reading messages.",
   ],
 ] as const;
 
@@ -146,6 +155,22 @@ export default function ForFamiliesPage() {
               </p>
             </details>
           ))}
+        </div>
+      </section>
+
+      <section className="border-t border-[var(--color-rule)] px-5 py-14 md:px-10 lg:px-14">
+        <div className="mx-auto max-w-7xl">
+          <Eyebrow>Observer contract</Eyebrow>
+          <div className="mt-6 grid gap-3 md:grid-cols-5">
+            {observerBoundaries.map((item) => (
+              <article
+                className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-4 text-sm leading-6 text-[var(--color-ink-soft)]"
+                key={item}
+              >
+                {item}
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 

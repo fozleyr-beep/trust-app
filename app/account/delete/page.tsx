@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { Route } from "next";
 import Link from "next/link";
 import { ButtonLink, Eyebrow, Wordmark } from "@/app/components/SakinahPrimitives";
+import { accountDeletionReceipt } from "@/lib/trust/retention";
 
 export const metadata: Metadata = {
   title: "Sakinah — delete your account",
@@ -56,6 +57,22 @@ export default function DeleteAccountPage() {
       <div className="mt-8">
         <ButtonLink href={"/app/settings" as Route}>Open settings</ButtonLink>
       </div>
+
+      <section className="mt-10 rounded border border-[var(--color-rule)] bg-[var(--color-paper-soft)] p-5">
+        <h2 className="font-serif text-[1.6rem] font-normal">
+          Deletion receipt
+        </h2>
+        <ul className="mt-4 grid gap-2">
+          {accountDeletionReceipt.map((item) => (
+            <li
+              className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-3 text-sm leading-6 text-[var(--color-ink-soft)]"
+              key={item}
+            >
+              {item}
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <p className="mt-8 text-sm leading-6 text-[var(--color-ink-muted)]">
         Current v1 behavior keeps thread membership rows and past ciphertext
