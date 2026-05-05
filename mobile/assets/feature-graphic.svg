@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 500" role="img" aria-label="Sakinah.family Play feature graphic">
+  <rect width="1024" height="500" fill="#f5efe6"/>
+  <rect x="72" y="72" width="260" height="356" rx="34" fill="#fffaf1" stroke="#2a2722" stroke-width="10"/>
+  <rect x="110" y="126" width="184" height="26" rx="13" fill="#2a2722"/>
+  <rect x="110" y="188" width="184" height="18" rx="9" fill="#8a9a7b"/>
+  <rect x="110" y="232" width="128" height="18" rx="9" fill="#a89d87"/>
+  <rect x="110" y="312" width="184" height="50" rx="14" fill="#2a2722"/>
+  <text x="394" y="184" fill="#2a2722" font-family="Georgia, serif" font-size="72" font-style="italic">sakinah.family</text>
+  <text x="398" y="250" fill="#5a5448" font-family="Arial, sans-serif" font-size="30">Private, agent-led marriage service</text>
+  <text x="398" y="312" fill="#7a6e5c" font-family="Arial, sans-serif" font-size="24">Hafiz verifies. Watim reasons. Adil protects consent. Sabr guards safety.</text>
+  <circle cx="842" cy="162" r="42" fill="#8a9a7b"/>
+  <circle cx="900" cy="250" r="28" fill="#2a2722"/>
+  <circle cx="812" cy="318" r="34" fill="#a89d87"/>
+</svg>

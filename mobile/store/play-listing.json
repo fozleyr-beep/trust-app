@@ -1,0 +1,23 @@
+{
+  "appName": "Sakinah.family",
+  "shortDescription": "Private, agent-led Muslim marriage service.",
+  "fullDescription": "Sakinah.family helps seekers and families move through a private, consent-first marriage process. Hafiz prepares onboarding and verification, Watim keeps matches explainable, Adil protects consent before rooms open, and Sabr keeps pressure and family-boundary risks visible. The Android app is the primary service surface; the web app remains the trust contract and account fallback.",
+  "category": "Dating",
+  "contactEmail": "fozleyr@gmail.com",
+  "privacyPolicyUrl": "https://trust-app-three.vercel.app/privacy",
+  "accountDeletionUrl": "https://trust-app-three.vercel.app/account/delete",
+  "defaultLanguage": "en-US",
+  "contentNotes": [
+    "No swipe feed positioning.",
+    "No in-app external checkout links on Android.",
+    "No sensitive Android permissions requested."
+  ],
+  "assetChecklist": {
+    "appIcon512": "source: mobile/assets/sakinah-icon.svg",
+    "adaptiveIcon": "source: mobile/assets/sakinah-icon.svg",
+    "featureGraphic1024x500": "source: mobile/assets/feature-graphic.svg",
+    "phoneScreenshots": "plan: mobile/store/screenshot-plan.md",
+    "sevenInchTabletScreenshots": "not planned for first release",
+    "tenInchTabletScreenshots": "not planned for first release"
+  }
+}

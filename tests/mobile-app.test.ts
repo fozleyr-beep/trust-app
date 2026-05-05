@@ -136,4 +136,33 @@ describe("mobile app foundation", () => {
     expect(app).toContain("Google Play Billing required");
     expect(app).toContain("Stripe remains web-only");
   });
+
+  it("keeps Play listing, QA, and release readiness artifacts", () => {
+    const pkg = read("package.json");
+    const listing = read("mobile/store/play-listing.json");
+    const qa = read("mobile/store/internal-testing-qa.md");
+    const releaseCheck = read("scripts/check-android-release-readiness.ts");
+    expect(pkg).toContain("android:release-check");
+    expect(listing).toContain("Sakinah.family");
+    expect(listing).toContain("accountDeletionUrl");
+    expect(qa).toContain("Android Internal Testing QA");
+    expect(qa).toContain("Encrypted send");
+    expect(releaseCheck).toContain("eas project id");
+    expect(releaseCheck).toContain("api domain");
+  });
+
+  it("keeps Play artwork sources and screenshot plan in repo", () => {
+    expect(existsSync(join(root, "mobile/assets/sakinah-icon.svg"))).toBe(true);
+    expect(existsSync(join(root, "mobile/assets/feature-graphic.svg"))).toBe(true);
+    expect(read("mobile/store/play-listing.json")).toContain("sakinah-icon.svg");
+    expect(read("mobile/store/screenshot-plan.md")).toContain("Store tab");
+  });
+
+  it("documents the domain switch gate before changing mobile API base", () => {
+    const domain = read("DOMAIN_ALIGNMENT.md");
+    const app = read("mobile/app.json");
+    expect(domain).toContain("sakinah.family/api/health");
+    expect(domain).toContain("returns `200`");
+    expect(app).toContain("https://trust-app-three.vercel.app");
+  });
 });

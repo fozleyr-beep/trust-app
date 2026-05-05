@@ -30,6 +30,12 @@ npm run build:android
 The `preview` profile creates an APK for internal testing. The `production`
 profile creates an Android App Bundle for Play Console.
 
+Release readiness from repo root:
+
+```bash
+npm run android:release-check
+```
+
 ## Launch gates
 
 - Let `eas build:configure` add the Expo project id to `app.json`.
