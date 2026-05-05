@@ -9,7 +9,16 @@ import {
   TrustChip,
   Wordmark,
 } from "@/app/components/SakinahPrimitives";
-import { AgentAuditRail, ServiceStageGrid } from "@/app/components/ServiceFlow";
+import {
+  AgentAuditRail,
+  AgentOpsPanel,
+  ServiceStageGrid,
+} from "@/app/components/ServiceFlow";
+import {
+  ensureAgentActionBaselines,
+  listAgentActionsForUser,
+} from "@/lib/agents/actions";
+import { requireDbUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +30,9 @@ export default async function AppPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in" as Route);
   const user = await currentUser();
+  const me = await requireDbUser();
+  await ensureAgentActionBaselines(me.id);
+  const agentActions = await listAgentActionsForUser(me.id);
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-12 md:px-8 md:py-16">
@@ -53,6 +65,10 @@ export default async function AppPage() {
         </div>
         <AgentAuditRail />
       </section>
+
+      <div className="mt-6">
+        <AgentOpsPanel actions={agentActions} />
+      </div>
 
       <div className="mt-10 grid gap-4 md:grid-cols-2">
         <SurfaceLink

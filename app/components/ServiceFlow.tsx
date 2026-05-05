@@ -8,88 +8,14 @@ import {
   TrustChip,
   Wordmark,
 } from "@/app/components/SakinahPrimitives";
-
-type StageState = "live" | "ready" | "gate";
-
-export const serviceStages = [
-  {
-    n: "01",
-    agent: "Hafiz",
-    title: "Onboard",
-    href: "/app/onboarding",
-    state: "ready",
-    body: "Profile, intent, family context, and voice intake without a coordinator call.",
-  },
-  {
-    n: "02",
-    agent: "Hafiz",
-    title: "Verify",
-    href: "/app/verification",
-    state: "gate",
-    body: "Identity, liveness, contact, and family-link checks. Provider wiring is the launch gate.",
-  },
-  {
-    n: "03",
-    agent: "Sakinah",
-    title: "Bill",
-    href: "/app/billing",
-    state: "gate",
-    body: "Self-serve checkout and billing portal. No sales call, no invoice chase.",
-  },
-  {
-    n: "04",
-    agent: "Watim",
-    title: "Match",
-    href: "/app/matches",
-    state: "ready",
-    body: "A small shortlist with the reason each person is being shown.",
-  },
-  {
-    n: "05",
-    agent: "Adil",
-    title: "Salaam",
-    href: "/app/salaam",
-    state: "ready",
-    body: "Mutual consent before a room opens. Observers can witness; they cannot post.",
-  },
-  {
-    n: "06",
-    agent: "Sabr",
-    title: "Family",
-    href: "/app/family",
-    state: "gate",
-    body: "Read-only family observer model. Server-side role enforcement is still a launch gate.",
-  },
-] as const;
-
-export const agentAudit = [
-  {
-    agent: "Hafiz",
-    action: "intake packet prepared",
-    timestamp: "step 01",
-  },
-  {
-    agent: "Watim",
-    action: "shortlist reason visible",
-    timestamp: "step 04",
-  },
-  {
-    agent: "Adil",
-    action: "consent before room",
-    timestamp: "step 05",
-  },
-  {
-    agent: "Sabr",
-    action: "pressure checks queued",
-    timestamp: "always",
-  },
-] as const;
-
-const stateLabel: Record<StageState, string> = {
-  live: "live",
-  ready: "operator-free design",
-  gate: "launch gate",
-};
+import type { AgentActionView } from "@/lib/agents/actions";
+import {
+  agentActionBaselines,
+  agentName,
+  agentStageLabels,
+  serviceStages,
+  type AgentStageState,
+} from "@/lib/agents/registry";
 
 export function AppServiceShell({
   eyebrow,
@@ -153,7 +79,7 @@ export function ServiceStageGrid() {
             {stage.title}
           </h2>
           <p className="mt-2 font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
-            by {stage.agent}
+            by {agentName(stage.agentId)}
           </p>
           <p className="mt-4 flex-1 text-sm leading-6 text-[var(--color-ink-soft)]">
             {stage.body}
@@ -167,10 +93,10 @@ export function ServiceStageGrid() {
   );
 }
 
-export function StatusPill({ state }: { state: StageState }) {
+export function StatusPill({ state }: { state: AgentStageState }) {
   return (
     <span className="rounded-full border border-[var(--color-rule)] px-2.5 py-1 font-mono text-[0.62rem] uppercase tracking-[0.1em] text-[var(--color-ink-muted)]">
-      {stateLabel[state]}
+      {agentStageLabels[state]}
     </span>
   );
 }
@@ -182,12 +108,12 @@ export function AgentAuditRail() {
         Agent audit rail
       </p>
       <div className="space-y-3">
-        {agentAudit.map((item) => (
+        {agentActionBaselines.map((item) => (
           <TrustChip
             action={item.action}
-            agent={item.agent}
-            key={`${item.agent}-${item.action}`}
-            timestamp={item.timestamp}
+            agent={agentName(item.agentId)}
+            key={item.key}
+            timestamp={item.subject}
           />
         ))}
       </div>
@@ -212,7 +138,7 @@ export function StepCard({
   title: string;
   body: string;
   agent: "Watim" | "Hafiz" | "Adil" | "Sabr" | "Sakinah";
-  state?: StageState;
+  state?: AgentStageState;
 }) {
   return (
     <article className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-5">
@@ -230,5 +156,48 @@ export function StepCard({
         {body}
       </p>
     </article>
+  );
+}
+
+export function AgentOpsPanel({ actions }: { actions: AgentActionView[] }) {
+  return (
+    <section className="rounded border border-[var(--color-rule)] bg-[var(--color-paper-soft)] p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-mono text-[0.65rem] uppercase tracking-[0.16em] text-[var(--color-ink-faint)]">
+            Agent operating spine
+          </p>
+          <h2 className="mt-3 font-serif text-[1.7rem] leading-tight">
+            Four agents, one visible ledger.
+          </h2>
+        </div>
+        <ButtonLink href={"/trust" as Route} tone="secondary">
+          Boundaries
+        </ButtonLink>
+      </div>
+      <div className="mt-6 grid gap-3 md:grid-cols-2">
+        {actions.map((item) => (
+          <article
+            className="rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-4"
+            key={item.key}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
+                {item.agentName} · {item.subject}
+              </p>
+              <StatusPill state={item.status} />
+            </div>
+            <h3 className="mt-4 font-serif text-[1.25rem] leading-tight">
+              {item.action}
+            </h3>
+            {item.detail && (
+              <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">
+                {item.detail}
+              </p>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }

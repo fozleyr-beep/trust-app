@@ -184,12 +184,52 @@ export const billingEvents = pgTable(
   }),
 );
 
+// ─── agent_actions ────────────────────────────────────────────────────
+// Per-user operating ledger for the four named service agents. This stores
+// product-state decisions, not encrypted-room content and not raw ID evidence.
+export const agentActions = pgTable(
+  "agent_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    agent: text("agent").notNull(),
+    status: text("status").notNull().default("ready"),
+    action: text("action").notNull(),
+    subject: text("subject"),
+    detail: text("detail"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    userKeyUnique: uniqueIndex("agent_actions_user_key_idx").on(
+      t.userId,
+      t.key,
+    ),
+    userCreatedIdx: index("agent_actions_user_created_idx").on(
+      t.userId,
+      t.createdAt,
+    ),
+    agentStatusIdx: index("agent_actions_agent_status_idx").on(
+      t.agent,
+      t.status,
+    ),
+  }),
+);
+
 // ─── relations ─────────────────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
   devices: many(deviceKeys),
   threadsCreated: many(threads),
   memberships: many(threadMembers),
   messagesSent: many(messages),
+  agentActions: many(agentActions),
 }));
 
 export const threadsRelations = relations(threads, ({ one, many }) => ({
@@ -244,6 +284,13 @@ export const serviceEntitlementsRelations = relations(
   }),
 );
 
+export const agentActionsRelations = relations(agentActions, ({ one }) => ({
+  user: one(users, {
+    fields: [agentActions.userId],
+    references: [users.id],
+  }),
+}));
+
 // ─── inferred types ────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -257,3 +304,5 @@ export type ServiceEntitlement = typeof serviceEntitlements.$inferSelect;
 export type NewServiceEntitlement = typeof serviceEntitlements.$inferInsert;
 export type BillingEvent = typeof billingEvents.$inferSelect;
 export type NewBillingEvent = typeof billingEvents.$inferInsert;
+export type AgentAction = typeof agentActions.$inferSelect;
+export type NewAgentAction = typeof agentActions.$inferInsert;

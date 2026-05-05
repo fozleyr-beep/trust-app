@@ -16,6 +16,7 @@ describe("zero-human service path", () => {
     "app/app/matches/page.tsx",
     "app/app/salaam/page.tsx",
     "app/app/family/page.tsx",
+    "app/api/agents/actions/route.ts",
   ];
 
   it("keeps every zero-human route present behind /app", () => {
@@ -27,6 +28,7 @@ describe("zero-human service path", () => {
   it("wires the dashboard to the full service path", () => {
     const dashboard = read("app/app/page.tsx");
     const serviceFlow = read("app/components/ServiceFlow.tsx");
+    const registry = read("lib/agents/registry.ts");
     expect(dashboard).toContain("ServiceStageGrid");
     for (const href of [
       "/app/onboarding",
@@ -36,7 +38,7 @@ describe("zero-human service path", () => {
       "/app/salaam",
       "/app/family",
     ]) {
-      expect(serviceFlow).toContain(href);
+      expect(`${serviceFlow}\n${registry}`).toContain(href);
     }
   });
 
@@ -45,6 +47,8 @@ describe("zero-human service path", () => {
     expect(read(".env.example")).toContain("STRIPE_PRICE_ID");
     expect(read("app/api/billing/checkout/route.ts")).toContain("status: 501");
     expect(read("app/api/billing/webhook/route.ts")).toContain("STRIPE_WEBHOOK_SECRET");
+    expect(read("lib/db/schema.ts")).toContain("agent_actions");
+    expect(read("app/api/agents/actions/route.ts")).toContain("sakinahAgents");
     expect(read("middleware.ts")).toContain("/api/billing/webhook");
     expect(read("DECISIONS.md")).toContain("zero human operator");
     expect(read("DECISIONS.md")).toContain("/app/billing");

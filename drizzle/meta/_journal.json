@@ -19,8 +19,15 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1777958360791,
+      "when": 1777957741685,
       "tag": "0002_billing_entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777959748037,
+      "tag": "0003_agent_actions",
       "breakpoints": true
     }
   ]

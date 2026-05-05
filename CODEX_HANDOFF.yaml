@@ -42,6 +42,7 @@ production:
     - "GET /walkthrough → 200 (30-second Sakinah flow)"
   surface_runtime_notes:
     - "/api/agent — uses direct ANTHROPIC_API_KEY when present; production can also use Vercel AI Gateway via OIDC."
+    - "/api/agents/actions — protected four-agent ledger for Hafiz/Watim/Adil/Sabr baseline actions."
     - "/api/webhooks/clerk — optional canonical sync; lazy-backfill covers signed-in users in v1."
     - "/api/billing/checkout — opens Stripe Checkout when STRIPE_SECRET_KEY + STRIPE_PRICE_ID are set; otherwise returns a launch-gate 501."
     - "/api/billing/webhook — verifies STRIPE_WEBHOOK_SECRET, records billing_events, updates service_entitlements."
@@ -198,7 +199,8 @@ architecture:
 
 # ─── Data model ────────────────────────────────────────────────────────
 # Source of truth: lib/db/schema.ts. Migrations: drizzle/0000_init.sql,
-# drizzle/0001_messaging.sql.
+# drizzle/0001_messaging.sql, drizzle/0002_billing_entitlements.sql,
+# drizzle/0003_agent_actions.sql.
 data_model:
   users:
     fields: [id (uuid), clerk_id (unique), email, created_at, updated_at, deleted_at]
@@ -226,6 +228,20 @@ data_model:
       One row per (recipient device) per send. Server holds zero
       plaintext and no key that decrypts these.
 
+  service_entitlements:
+    fields: [id, user_id (unique fk), status, source, stripe_customer_id, stripe_subscription_id, current_period_end, created_at, updated_at]
+    notes: user-facing paid service gate; updated by Stripe webhook.
+
+  billing_events:
+    fields: [id, provider, event_id, type, payload, created_at]
+    indexes: [(provider, event_id) unique]
+    notes: idempotency ledger for Stripe webhooks.
+
+  agent_actions:
+    fields: [id, user_id (fk), key, agent, status, action, subject, detail, created_at, updated_at]
+    indexes: [(user_id, key) unique, (user_id, created_at), (agent, status)]
+    notes: per-user visible ledger for Hafiz, Watim, Adil, and Sabr; no encrypted-room plaintext and no raw ID evidence.
+
 # ─── API surface ───────────────────────────────────────────────────────
 # Wire schemas are in lib/api/schemas.ts (Zod) and routed via
 # app/api/**/route.ts.
@@ -239,13 +255,21 @@ api:
     POST /api/webhooks/clerk: svix-verified; user.created/updated/deleted
 
   authed:
-    GET /app:                 dashboard (lists 4 surfaces)
+    GET /app:                 dashboard (service path + four-agent ledger)
+    GET /app/onboarding:      Hafiz/Watim intake path
+    GET /app/verification:    Hafiz verification launch gates
+    GET /app/billing:         self-serve billing + entitlement status
+    GET /app/matches:         Watim shortlist surface
+    GET /app/salaam:          Adil consent gate
+    GET /app/family:          Sabr/Adil observer model
     GET /app/agent:           Claude assistant
     GET /app/settings:        fingerprint, rotate, export, sign-out, delete
     GET /app/threads:         list (with peer emails)
     GET /app/threads/new:     form → createThread server action
     GET /app/threads/[id]:    thread (Composer + MessageStream + PeerFingerprints)
 
+    GET  /api/agents/actions:               protected four-agent ledger
+    POST /api/billing/checkout:             Stripe Checkout if env configured
     POST /api/device-keys:                  register/rotate device pubkey (revokes prior)
     POST /api/sender-keys:                  fetch peer pubkeys for verify+open
     GET  /api/threads/[id]/recipient-keys:  active member device pubkeys

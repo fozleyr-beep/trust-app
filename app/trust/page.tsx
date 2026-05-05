@@ -5,6 +5,7 @@ import {
   TrustChip,
   Wordmark,
 } from "@/app/components/SakinahPrimitives";
+import { sakinahAgents } from "@/lib/agents/registry";
 
 export const metadata: Metadata = {
   title: "Sakinah — trust & verification",
@@ -18,41 +19,6 @@ const COMMIT_SHA = (
   process.env.GIT_COMMIT_SHA ??
   "dev"
 ).slice(0, 7);
-
-const agents = [
-  {
-    name: "Watim",
-    arabic: "الواطم",
-    role: "Matchmaker",
-    does: "Reads profiles and explains why a match is being shown.",
-    boundary: "Cannot read messages once a mediated thread opens.",
-    status: "design locked",
-  },
-  {
-    name: "Hafiz",
-    arabic: "الحافظ",
-    role: "Verifier",
-    does: "Checks identity, phone, email, and duplicate-account signals.",
-    boundary: "ID evidence must be hashed or discarded after verification.",
-    status: "provider pending",
-  },
-  {
-    name: "Adil",
-    arabic: "العادل",
-    role: "Mediator",
-    does: "Keeps the conversation structured and asks before sharing summaries.",
-    boundary: "Cannot reveal private messages to Sakinah staff.",
-    status: "message boundary live",
-  },
-  {
-    name: "Sabr",
-    arabic: "الصبر",
-    role: "Guardrail",
-    does: "Watches for harassment, pressure, scams, and photo-leak patterns.",
-    boundary: "Surfaces risk to the seeker, not to other users.",
-    status: "design locked",
-  },
-] as const;
 
 const liveGuarantees = [
   {
@@ -177,7 +143,7 @@ export default function TrustPage() {
           </h2>
         </div>
         <div className="mx-auto grid max-w-7xl border-t border-[var(--color-rule)] md:grid-cols-2">
-          {agents.map((agent, index) => (
+          {sakinahAgents.map((agent, index) => (
             <article
               className={[
                 "border-b border-[var(--color-rule)] bg-[var(--color-paper)] p-6 md:p-8",
@@ -199,7 +165,7 @@ export default function TrustPage() {
                 </p>
               </div>
               <p className="text-sm leading-6 text-[var(--color-ink-soft)]">
-                {agent.does}
+                {agent.promise}
               </p>
               <dl className="mt-5 space-y-3 text-sm text-[var(--color-ink-soft)]">
                 <div className="grid gap-1 sm:grid-cols-[6rem_1fr]">

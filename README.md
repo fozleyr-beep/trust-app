@@ -2,10 +2,11 @@
 
 A private Sakinah.family build inside the `trust-app` repo: end-to-end
 encrypted rooms with people, a separate Claude assistant that cannot read those
-messages, self-serve Stripe-ready billing, and a Sand & Sage public trust
-surface based on the Sakinah design archive. The product direction is
-zero-human-operator: onboarding, verification, payment, matching, salaam,
-observer access, and handoff should run through named agents, not staff.
+messages, self-serve Stripe-ready billing, a four-agent operating ledger, and a
+Sand & Sage public trust surface based on the Sakinah design archive. The
+product direction is zero-human-operator: onboarding, verification, payment,
+matching, salaam, observer access, and handoff should run through named agents,
+not staff.
 
 Stack:
 
@@ -34,9 +35,9 @@ cp .env.example .env.local
 # optional local assistant probe: AI_GATEWAY_API_KEY or ANTHROPIC_API_KEY
 # optional self-serve billing: STRIPE_SECRET_KEY, STRIPE_PRICE_ID
 npm install
-npm run db:push     # one-time — creates the 5 tables in Neon
+npx drizzle-kit migrate  # one-time — creates the 8 tables in Neon
 npm run doctor      # preflight: env + connectivity probes
-npm test            # 11/11
+npm test
 npm run dev         # http://localhost:3000
 ```
 
@@ -46,7 +47,7 @@ npm run dev         # http://localhost:3000
 2. Import in Vercel; Next.js auto-detected.
 3. Set env vars from `.env.example` in the Vercel project settings.
 4. Provision a Neon database and paste `DATABASE_URL`.
-5. Run migrations: `DATABASE_URL=… npm run db:push`.
+5. Run migrations: `DATABASE_URL=… npx drizzle-kit migrate`.
 6. Assistant calls use Vercel AI Gateway through the project OIDC token in
    production. No raw Anthropic key is required on Vercel.
 7. Optional payments: add `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, and
@@ -81,6 +82,7 @@ app/
     settings/                # fingerprint, rotate, export, delete
   api/
     agent/                   # streaming Anthropic, rate-limited
+    agents/actions/          # protected four-agent ledger
     billing/checkout/        # Stripe Checkout if env configured
     billing/webhook/         # Stripe signature verification + entitlements
     device-keys/             # POST register / rotate
@@ -95,12 +97,14 @@ app/
 lib/
   ai/client.ts               # Anthropic SDK + system prompt
   api/{schemas,parse,rate-limit}.ts
+  agents/{registry,actions}.ts # Hafiz/Watim/Adil/Sabr contracts + ledger
   auth/current-user.ts       # Clerk → Drizzle resolver + lazy backfill
   crypto/{index,keystore,messaging}.ts
   db/{index,schema,threads}.ts
   log.ts                     # JSON logger
 middleware.ts                # Clerk auth + strict nonce-based CSP
 tests/
+  agent-spine.test.ts        # asserts four-agent source of truth
   agent-isolation.test.ts    # asserts agent never touches messages
 drizzle/                     # migrations
 scripts/
@@ -120,6 +124,7 @@ scripts/
 | You can export your full history | `/app/settings` → Export, runs entirely in the browser |
 | You can delete your account | `/app/settings` → Danger zone (typed confirmation) |
 | Paid service access is self-serve | `service_entitlements` updated by `/api/billing/webhook` |
+| Named agents operate without staff | `agent_actions` + `/api/agents/actions` + `tests/agent-spine.test.ts` |
 | Server holds metadata, not plaintext | `lib/db/schema.ts` — `messages.ciphertext` is bytea only |
 
 ## License

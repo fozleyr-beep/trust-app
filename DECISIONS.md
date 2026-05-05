@@ -82,6 +82,13 @@ idempotent webhook receipt plus `service_entitlements` as the user-facing access
 gate; it must stay launch-gated until `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`,
 and `STRIPE_WEBHOOK_SECRET` are configured in production.
 
+The four named service agents are canonical in `lib/agents/registry.ts`:
+Hafiz (verification), Watim (match reasoning), Adil (consent), and Sabr
+(pressure and observer safety). Every signed-in user gets a baseline
+`agent_actions` ledger surfaced on `/app` and through `/api/agents/actions`.
+This ledger may hold product state and launch gates; it must not store
+encrypted-room plaintext or raw identity evidence.
+
 ---
 
 ## Encryption model — locked

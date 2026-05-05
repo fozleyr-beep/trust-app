@@ -80,9 +80,9 @@ npx drizzle-kit migrate    # non-interactive; applies drizzle/*.sql
 npm run db:check           # should report "schema in sync with migrations ✓"
 ```
 
-This creates the 5 tables (`users`, `device_keys`, `threads`,
-`thread_members`, `messages`). `drizzle-kit` does not auto-load `.env.local`,
-hence the `export`.
+This creates the core tables, including encrypted messaging, billing
+entitlements, and the four-agent action ledger. `drizzle-kit` does not
+auto-load `.env.local`, hence the `export`.
 
 **Why `migrate` instead of `push`** — `drizzle-kit push` is interactive
 ("Yes, I want to execute all statements") and the prompt does not always
@@ -169,6 +169,10 @@ clear launch-gate message. With the webhook secret set,
 `POST /api/billing/webhook` verifies Stripe's signature, records each event once
 in `billing_events`, and updates `service_entitlements` so paid access can
 unlock matching without staff action.
+
+The four named agents do not need a separate provider key yet. Their canonical
+contracts live in `lib/agents/registry.ts`, and signed-in users get baseline
+state in `agent_actions` through `/app` or `/api/agents/actions`.
 
 ---
 

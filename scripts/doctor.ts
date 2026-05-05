@@ -176,6 +176,7 @@ async function checkDatabaseSchema(): Promise<Check> {
     `) as Array<{ table_name: string }>;
     const got = new Set(tables.map((t) => t.table_name));
     const expected = [
+      "agent_actions",
       "billing_events",
       "device_keys",
       "messages",
