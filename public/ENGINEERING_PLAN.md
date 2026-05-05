@@ -36,6 +36,8 @@ Every product slice should pass:
 - `npm run build`
 - `npm run check:bundle`
 - `npm run db:check` when schema/API state changes
+- `npm run doctor:json` for machine-readable provider/env health
+- `npm run smoke:prod` after production deploy
 - production smoke for `/api/health`, public docs, and protected app boundary
 
 ## Non-negotiables

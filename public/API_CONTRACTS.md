@@ -45,6 +45,13 @@ Last updated: 2026-05-05
   - Returns the 50-item platform execution rail for the signed-in operator.
   - Includes owner, status, score, blocker, route, and next move.
 
+## Operator scripts
+
+- `npm run doctor:json`
+  - Emits machine-readable env, database, Clerk, and assistant readiness.
+- `npm run smoke:prod`
+  - Smokes public trust/privacy/family surfaces and gated-photo behavior.
+
 ## Messaging routes
 
 - `POST /api/device-keys` registers a public device key.

@@ -1,4 +1,5 @@
 import "server-only";
+import { isPrivacyEventAllowed } from "@/lib/observability-policy";
 
 type PrivacyEvent = {
   event: string;
@@ -9,7 +10,7 @@ export async function recordPrivacyEvent(input: PrivacyEvent): Promise<void> {
   const key = process.env.POSTHOG_KEY;
   const host = process.env.POSTHOG_HOST ?? "https://us.i.posthog.com";
   if (!key) return;
-  if (input.event.startsWith("observer.")) return;
+  if (!isPrivacyEventAllowed(input.event)) return;
 
   await fetch(`${host}/capture/`, {
     method: "POST",

@@ -295,8 +295,11 @@ function render(checks: Check[]): void {
 }
 
 async function main() {
-  console.log("\ntrust-app doctor");
-  console.log("");
+  const json = process.argv.includes("--json");
+  if (!json) {
+    console.log("\ntrust-app doctor");
+    console.log("");
+  }
 
   const checks: Check[] = [];
 
@@ -314,10 +317,25 @@ async function main() {
   ]);
   checks.push(...probes);
 
-  render(checks);
-
   const failures = checks.filter((c) => c.status === "fail").length;
   const warnings = checks.filter((c) => c.status === "warn").length;
+  if (json) {
+    console.log(
+      JSON.stringify(
+        {
+          checks,
+          failures,
+          ok: failures === 0,
+          warnings,
+        },
+        null,
+        2,
+      ),
+    );
+    process.exit(failures === 0 ? 0 : 1);
+  }
+
+  render(checks);
   console.log("");
   if (failures === 0) {
     console.log(

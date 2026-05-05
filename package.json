@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "doctor": "tsx scripts/doctor.ts",
+    "doctor:json": "tsx scripts/doctor.ts --json",
+    "smoke:prod": "tsx scripts/smoke-production.ts",
     "mobile:start": "npm --prefix mobile run start",
     "mobile:android": "npm --prefix mobile run android",
     "mobile:check": "tsx scripts/check-mobile-readiness.ts",
