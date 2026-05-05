@@ -117,9 +117,12 @@ function ProfileCard({
         <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
           {person.city}
         </p>
-        <div className="mt-3">
+        <div className="mt-3 hidden sm:block">
           <StoryChip agent="Hafiz" action="ID verified" timestamp="14d" />
         </div>
+        <p className="mt-2 font-mono text-[0.56rem] leading-4 text-[var(--color-ink-faint)] sm:hidden">
+          Hafiz · ID verified · 14d
+        </p>
       </div>
     </div>
   );
