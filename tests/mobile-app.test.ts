@@ -39,6 +39,7 @@ describe("mobile app foundation", () => {
     const app = read("mobile/App.tsx");
     expect(existsSync(join(root, "app/privacy/page.tsx"))).toBe(true);
     expect(existsSync(join(root, "app/account/delete/page.tsx"))).toBe(true);
+    expect(read("middleware.ts")).toContain("/account/delete");
     expect(app).toContain("/account/delete");
     expect(app).toContain("/privacy");
     expect(app).toContain("/sign-in");
