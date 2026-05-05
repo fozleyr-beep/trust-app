@@ -51,7 +51,7 @@ describe("mobile app foundation", () => {
     const config = read("mobile/app.json");
     expect(pkg).toContain('"@clerk/expo"');
     expect(pkg).not.toContain("@clerk/clerk-expo");
-    expect(config).toContain('"@clerk/expo"');
+    expect(pkg).toContain('"@clerk/expo"');
     expect(config).toContain('"expo-secure-store"');
     expect(app).toContain("ClerkProvider");
     expect(app).toContain("@clerk/expo/token-cache");

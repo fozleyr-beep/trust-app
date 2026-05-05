@@ -76,7 +76,7 @@ const checks: Check[] = [
   fileContains("mobile/src/crypto/messaging.ts", "nacl.box"),
   fileContains("mobile/src/messaging/api.ts", "sendEncryptedMobileMessage"),
   fileContains("mobile/app.json", "\"permissions\": []"),
-  fileContains("mobile/app.json", "\"@clerk/expo\""),
+  fileContains("mobile/package.json", "\"@clerk/expo\""),
   fileContains("mobile/eas.json", "\"buildType\": \"app-bundle\""),
   fileContains("app/account/delete/page.tsx", "Delete"),
   fileContains("app/privacy/page.tsx", "Privacy"),

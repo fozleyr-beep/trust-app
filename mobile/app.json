@@ -6,19 +6,16 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "family.sakinah.app",
       "supportsTablet": false
     },
     "android": {
       "package": "family.sakinah.app",
-      "edgeToEdgeEnabled": true,
       "permissions": []
     },
     "plugins": [
-      "expo-secure-store",
-      "@clerk/expo"
+      "expo-secure-store"
     ],
     "extra": {
       "apiBaseUrl": "https://sakinah.family",
