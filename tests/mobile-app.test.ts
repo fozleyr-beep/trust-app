@@ -88,4 +88,14 @@ describe("mobile app foundation", () => {
     expect(app).toContain("Privacy consent is required");
     expect(app).toContain("Save onboarding");
   });
+
+  it("puts service intake, agent ledger, and match readiness on mobile", () => {
+    const app = read("mobile/App.tsx");
+    expect(app).toContain("ServiceIntakeFlow");
+    expect(app).toContain("MatchReadinessCard");
+    expect(app).toContain("AgentLedgerCards");
+    expect(app).toContain("agentActionBaselines");
+    expect(app).toContain("Privacy consent accepted");
+    expect(app).toContain("Watim may prepare an explainable shortlist");
+  });
 });

@@ -22,6 +22,7 @@ import {
 import { tokenCache } from "@clerk/expo/token-cache";
 import Constants from "expo-constants";
 import {
+  agentActionBaselines,
   agentName,
   sakinahAgents,
   serviceStages,
@@ -46,9 +47,44 @@ const stateCopy: Record<AgentStageState, string> = {
   gate: "Launch gate",
 };
 
-type TabName = "path" | "agents" | "account" | "store";
+type TabName = "start" | "path" | "agents" | "account" | "store";
 type AuthMode = "sign-in" | "sign-up";
 type Intent = "seeker" | "family";
+
+const intakeSteps = [
+  {
+    agent: "Hafiz",
+    title: "Intent",
+    body: "Choose seeker or family path, then capture city and contact readiness.",
+  },
+  {
+    agent: "Hafiz",
+    title: "Verification",
+    body: "Prepare identity and family-link checks before matching widens.",
+  },
+  {
+    agent: "Watim",
+    title: "Preferences",
+    body: "Capture values, boundaries, non-negotiables, and family involvement.",
+  },
+  {
+    agent: "Adil",
+    title: "Consent",
+    body: "Confirm who may witness, who may speak, and when a salaam can open.",
+  },
+  {
+    agent: "Sabr",
+    title: "Safety",
+    body: "Mark pressure risks, pause rules, and expiry expectations.",
+  },
+] as const;
+
+const readinessChecks = [
+  "Profile intent saved",
+  "Privacy consent accepted",
+  "Verification path prepared",
+  "Family boundary selected",
+] as const;
 
 export default function App() {
   const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -65,7 +101,7 @@ export default function App() {
 }
 
 function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
-  const [tab, setTab] = useState<TabName>("path");
+  const [tab, setTab] = useState<TabName>("start");
   const apiBaseUrl = useMemo(() => {
     const extra = Constants.expoConfig?.extra as
       | { apiBaseUrl?: string }
@@ -97,6 +133,11 @@ function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
         </View>
 
         <View style={styles.tabs}>
+          <Tab
+            label="Start"
+            active={tab === "start"}
+            onPress={() => setTab("start")}
+          />
           <Tab label="Path" active={tab === "path"} onPress={() => setTab("path")} />
           <Tab
             label="Agents"
@@ -114,6 +155,13 @@ function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
             onPress={() => setTab("store")}
           />
         </View>
+
+        {tab === "start" && (
+          <View style={styles.stack}>
+            <ServiceIntakeFlow />
+            <MatchReadinessCard />
+          </View>
+        )}
 
         {tab === "path" && (
           <View style={styles.stack}>
@@ -133,6 +181,7 @@ function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
 
         {tab === "agents" && (
           <View style={styles.stack}>
+            <AgentLedgerCards />
             {sakinahAgents.map((agent) => (
               <Card key={agent.id}>
                 <View style={styles.cardTopline}>
@@ -177,6 +226,111 @@ function AppShell({ nativeAuthReady }: { nativeAuthReady: boolean }) {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ServiceIntakeFlow() {
+  const [activeStep, setActiveStep] = useState(0);
+  const step = intakeSteps[activeStep];
+
+  function nextStep() {
+    setActiveStep((current) => Math.min(current + 1, intakeSteps.length - 1));
+  }
+
+  function previousStep() {
+    setActiveStep((current) => Math.max(current - 1, 0));
+  }
+
+  return (
+    <Card>
+      <View style={styles.cardTopline}>
+        <Text style={styles.step}>
+          {String(activeStep + 1).padStart(2, "0")} / {intakeSteps.length}
+        </Text>
+        <Text style={styles.cardAgent}>{step.agent}</Text>
+      </View>
+      <Text style={styles.cardTitle}>{step.title}</Text>
+      <Text style={styles.cardBody}>{step.body}</Text>
+      <View style={styles.buttonRow}>
+        <Pressable
+          disabled={activeStep === 0}
+          style={[
+            styles.secondaryButton,
+            styles.rowButton,
+            activeStep === 0 && styles.buttonDisabled,
+          ]}
+          onPress={previousStep}
+        >
+          <Text style={styles.secondaryButtonText}>Back</Text>
+        </Pressable>
+        <Pressable
+          disabled={activeStep === intakeSteps.length - 1}
+          style={[
+            styles.primaryButton,
+            styles.rowButton,
+            activeStep === intakeSteps.length - 1 && styles.buttonDisabled,
+          ]}
+          onPress={nextStep}
+        >
+          <Text style={styles.primaryButtonText}>Next</Text>
+        </Pressable>
+      </View>
+    </Card>
+  );
+}
+
+function MatchReadinessCard() {
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const readyCount = readinessChecks.filter((item) => checked[item]).length;
+  const isReady = readyCount === readinessChecks.length;
+
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>Match readiness</Text>
+      <Text style={styles.cardBody}>
+        {isReady
+          ? "Watim may prepare an explainable shortlist."
+          : `${readyCount}/${readinessChecks.length} consent gates ready.`}
+      </Text>
+      {readinessChecks.map((item) => (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: Boolean(checked[item]) }}
+          key={item}
+          style={styles.consentRow}
+          onPress={() =>
+            setChecked((current) => ({ ...current, [item]: !current[item] }))
+          }
+        >
+          <View
+            style={[styles.checkbox, checked[item] && styles.checkboxActive]}
+          />
+          <Text style={styles.consentText}>{item}</Text>
+        </Pressable>
+      ))}
+    </Card>
+  );
+}
+
+function AgentLedgerCards() {
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>Agent ledger</Text>
+      <Text style={styles.cardBody}>
+        Product-state actions visible to the user before any human coordinator
+        exists.
+      </Text>
+      {agentActionBaselines.map((item) => (
+        <View style={styles.ledgerRow} key={item.key}>
+          <View style={styles.ledgerTopline}>
+            <Text style={styles.cardAgent}>{agentName(item.agentId)}</Text>
+            <Pill state={item.status} />
+          </View>
+          <Text style={styles.ledgerAction}>{item.action}</Text>
+          <Text style={styles.ledgerDetail}>{item.detail}</Text>
+        </View>
+      ))}
+    </Card>
   );
 }
 
@@ -252,7 +406,7 @@ function AuthenticatedAccountTab({ apiBaseUrl }: { apiBaseUrl: string }) {
         <Text style={styles.cardBody}>
           {user?.primaryEmailAddress?.emailAddress ??
             user?.fullName ??
-          "Private Sakinah account"}
+            "Private Sakinah account"}
         </Text>
       </Card>
       <OnboardingGate />
@@ -733,6 +887,14 @@ const styles = StyleSheet.create({
     gap: 6,
     padding: 6,
   },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+  rowButton: {
+    flex: 1,
+  },
   tab: {
     alignItems: "center",
     borderRadius: 10,
@@ -859,6 +1021,29 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     lineHeight: 19,
+  },
+  ledgerRow: {
+    borderColor: colors.rule,
+    borderTopWidth: 1,
+    marginTop: 14,
+    paddingTop: 14,
+  },
+  ledgerTopline: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  ledgerAction: {
+    color: colors.ink,
+    fontSize: 15,
+    marginTop: 8,
+  },
+  ledgerDetail: {
+    color: colors.inkMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 6,
   },
   arabic: {
     color: colors.inkMuted,
